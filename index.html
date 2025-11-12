@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- MODIFIKASI 1: Menambahkan viewport-fit=cover -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Video Player & Embed Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
@@ -42,6 +43,28 @@
       .hidden {
         display: none !important;
       }
+
+      /* MODIFIKASI 2: Menambahkan CSS untuk safe-area saat fullscreen */
+      #video-container:fullscreen #controls-container {
+        padding-left: max(12px, env(safe-area-inset-left));
+        padding-right: max(12px, env(safe-area-inset-right));
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+      }
+
+      /* Menyesuaikan watermark agar tidak terhalang poni saat fullscreen */
+      #video-container:fullscreen #watermark-img {
+          --safe-top: env(safe-area-inset-top, 12px);
+          --safe-left: env(safe-area-inset-left, 12px);
+          --safe-right: env(safe-area-inset-right, 12px);
+          --safe-bottom: env(safe-area-inset-bottom, 12px);
+
+          /* Logika ini perlu disesuaikan di dalam Javascript agar lebih dinamis,
+             namun CSS ini memberikan dasar yang baik untuk posisi atas. */
+          transform: translate(
+            calc(var(--base-translate-x, 0%) + var(--offset-x, 0px)),
+            calc(var(--base-translate-y, 0%) + var(--offset-y, 0px))
+          ) !important;
+      }
     </style>
 </head>
 <body class="bg-gray-900">
@@ -53,7 +76,7 @@
   // --- STATE MANAGEMENT ---
   const state = {
     sources: [],
-    watermarkUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAxMDAgMzAiPjx0ZXh0IHg9IjUwIiB5PSIyMiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiBmaWxsPSJyZ2JhKDc0LCAyMjIsIDEyOCwgMC43NSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtd2VpZ2h0PSJib2xkIj5pUUtXPC90ZXh0Pjwvc3ZnPg==',
+    watermarkUrl: 'https://timorles23-alt.github.io/iq-tes-player/2222.png',
     watermarkPosition: 'top-right',
     watermarkSettings: {
         desktop: { size: 112, x: 12, y: 12 },
@@ -464,7 +487,6 @@
             watermarkImg.style.top = '50%';
             transformY = `-50%`;
         }
-        transformY = `calc(${transformY} + ${yOffset}px)`;
         
         if (posX === 'left') watermarkImg.style.left = '0px';
         if (posX === 'right') watermarkImg.style.right = '0px';
@@ -472,9 +494,14 @@
             watermarkImg.style.left = '50%';
             transformX = `-50%`;
         }
-        transformX = `calc(${transformX} + ${xOffset}px)`;
         
-        watermarkImg.style.transform = `translate(${transformX}, ${transformY})`;
+        // Simpan variabel dasar untuk CSS
+        watermarkImg.style.setProperty('--base-translate-x', transformX);
+        watermarkImg.style.setProperty('--base-translate-y', transformY);
+        watermarkImg.style.setProperty('--offset-x', `${xOffset}px`);
+        watermarkImg.style.setProperty('--offset-y', `${yOffset}px`);
+
+        watermarkImg.style.transform = `translate(calc(${transformX} + ${xOffset}px), calc(${transformY} + ${yOffset}px))`;
     } else {
         watermarkImg.classList.add('hidden');
     }
