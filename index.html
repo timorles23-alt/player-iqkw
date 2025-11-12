@@ -52,7 +52,11 @@
   // --- STATE MANAGEMENT ---
   const state = {
     sources: [],
-    watermarkUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAxMDAgMzAiPjx0ZXh0IHg9IjUwIiB5PSIyMiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiBmaWxsPSJyZ2JhKDc0LCAyMjIsIDEyOCwgMC43NSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtd2VpZ2h0PSJib2xkIj5pUUtXPC90ZXh0Pjwvc3ZnPg==',
+    watermarkUrl: 'https://timorles23-alt.github.io/player-iqkw/20251112013537.png',
+    watermarkPosition: 'top-right',
+    watermarkSize: 112, // default width in px
+    watermarkXOffset: 12, // default horizontal offset in px
+    watermarkYOffset: 12, // default vertical offset in px
     generatedUrl: '',
     isEmbedMode: false,
   };
@@ -72,18 +76,18 @@
     volumeUp: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 sm:w-5 sm:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" /></svg>`,
     volumeOff: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 sm:w-5 sm:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 9.75 19.5 12m0 0 2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6.375a9 9 0 0 1 12.728 0M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" /></svg>`,
     subtitle: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 sm:w-5 sm:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" /></svg>`,
-    settings: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 sm:w-5 sm:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.242 1.453l-1.028.925c-.245.222-.39.547-.39.882v.28c0 .336.145.66.39.882l1.028.925a1.125 1.125 0 0 1 .242 1.453l-1.296 2.247a1.125 1.125 0 0 1-1.37.49l-1.217-.456c-.355-.133-.75-.072-1.075.124a6.57 6.57 0 0 1-.22.127c-.332.183-.582.495-.645.87l-.213 1.281c-.09.543-.56.94-1.11.94h-2.593c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.063-.374-.313-.686-.645-.87a6.52 6.52 0 0 1-.22-.127c-.324-.196-.72-.257-1.075-.124l-1.217.456a1.125 1.125 0 0 1-1.37-.49l-1.296-2.247a1.125 1.125 0 0 1 .242-1.453l1.028-.925c.245.222-.39.547-.39.882v-.28c0-.336-.145-.66-.39-.882l-1.028-.925a1.125 1.125 0 0 1-.242-1.453l1.296-2.247a1.125 1.125 0 0 1 1.37-.49l1.217.456c.355.133.75.072 1.075.124.073-.044.146-.087.22-.127.332-.183.582-.495.645-.87l.213-1.281Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>`,
+    settings: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 sm:w-5 sm:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.242 1.453l-1.028.925c-.245.222-.39.547-.39.882v.28c0 .336.145.66.39.882l1.028.925a1.125 1.125 0 0 1 .242 1.453l-1.296 2.247a1.125 1.125 0 0 1-1.37.49l-1.217-.456c-.355-.133-.75-.072-1.075.124a6.57 6.57 0 0 1-.22.127c-.332.183-.582.495-.645.87l-.213 1.281c-.09.543-.56.94-1.11.94h-2.593c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.063-.374-.313-.686-.645-.87a6.52 6.52 0 0 1-.22-.127c-.324-.196-.72-.257-1.075-.124l-1.217.456a1.125 1.125 0 0 1-1.37-.49l-1.296-2.247a1.125 1.125 0 0 1 .242-1.453l1.028-.925c.245.222-.39.547-.39.882v-.28c0-.336-.145-.66-.39-.882l-1.028-.925a1.125 1.125 0 0 1-.242-1.453l1.296-2.247a1.125 1.125 0 0 1 1.37.49l1.217.456c.355.133.75.072 1.075.124.073-.044.146-.087.22-.127.332-.183.582-.495.645.87l.213-1.281Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>`,
     fullscreen: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 sm:w-5 sm:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" /></svg>`,
-    upload: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>`,
+    upload: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>`,
     trash: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.134-2.036-2.134H8.716c-1.12 0-2.037.955-2.037 2.134v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>`,
     copy: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v3.042m-7.2-3.654A2.25 2.25 0 0 0 6.75 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v3.042m0 9.75a2.25 2.25 0 0 1-2.25 2.25h-3a2.25 2.25 0 0 1-2.25-2.25v-3c0-1.03.693-1.9 1.638-2.166M15.666 3.888c-1.03.693-1.9 1.638-2.166 2.166m0 0c.055.194.084.4.084.612v3.042m-7.2-3.654c-1.03.693-1.9 1.638-2.166 2.166m0 0a2.25 2.25 0 0 0 2.25 2.25h3a2.25 2.25 0 0 0 2.25-2.25v-3c0-1.03-.693-1.9-1.638-2.166m-1.834 5.751c.12.239.246.467.38.686m0 0a2.25 2.25 0 0 1 2.25 2.25h3a2.25 2.25 0 0 1 2.25-2.25v-3c0-1.03-.693-1.9-1.638-2.166" /></svg>`,
     check: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-green-400"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>`,
+    close: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>`,
   };
   
   const createPlayerHTML = () => `
     <div id="video-container" class="relative group w-full aspect-video bg-black rounded-lg overflow-hidden shadow-lg">
-      <input type="file" id="subtitle-upload-input" accept=".vtt,.srt" class="hidden" />
-      <img id="watermark-img" alt="Watermark" class="absolute top-2 right-0 md:top-4 w-15 md:w-52 md:-right-4 h-auto opacity-75 pointer-events-none z-10" />
+      <img id="watermark-img" alt="Watermark" class="absolute opacity-75 pointer-events-none z-10" />
       <video id="video-element" class="w-full h-full object-contain" preload="metadata" crossOrigin="anonymous"></video>
       
       <div id="video-placeholder" class="w-full h-full bg-black flex items-center justify-center hidden">
@@ -127,7 +131,7 @@
             </div>
             <div class="relative">
                 <button id="settings-menu-button">${ICONS.settings}</button>
-                <div id="settings-menu" class="absolute bottom-full right-0 mb-2 bg-black/80 rounded-md py-1 text-white text-sm w-28 sm:w-32 z-10 overflow-y-auto max-h-60 hidden"></div>
+                <div id="settings-menu" class="absolute bottom-full right-0 mb-2 bg-black/80 rounded-md py-1 text-white text-sm w-36 sm:w-40 z-10 overflow-y-auto max-h-60 hidden"></div>
             </div>
             <button id="fullscreen-button">${ICONS.fullscreen}</button>
           </div>
@@ -165,7 +169,40 @@
                     <label for="watermark-url-input" class="block text-sm font-medium text-gray-300 mb-1">Watermark Link</label>
                     <input id="watermark-url-input" type="url" placeholder="https://example.com/logo.png" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded-md py-2 px-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition placeholder-gray-400" />
                   </div>
-                  <form id="add-resource-form" class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-600 pt-6">
+                  <div id="watermark-controls-container">
+                      <label class="block text-sm font-medium text-gray-300 mb-2">Watermark Position</label>
+                      <div id="watermark-position-grid" class="grid grid-cols-3 gap-2 w-24">
+                        <button data-position="top-left" class="aspect-square border border-gray-600 rounded-md flex items-center justify-center hover:bg-gray-600 transition-colors"></button>
+                        <button data-position="top-center" class="aspect-square border border-gray-600 rounded-md flex items-center justify-center hover:bg-gray-600 transition-colors"></button>
+                        <button data-position="top-right" class="aspect-square border border-gray-600 rounded-md flex items-center justify-center hover:bg-gray-600 transition-colors"></button>
+                        <button data-position="middle-left" class="aspect-square border border-gray-600 rounded-md flex items-center justify-center hover:bg-gray-600 transition-colors"></button>
+                        <button data-position="middle-center" class="aspect-square border border-gray-600 rounded-md flex items-center justify-center hover:bg-gray-600 transition-colors"></button>
+                        <button data-position="middle-right" class="aspect-square border border-gray-600 rounded-md flex items-center justify-center hover:bg-gray-600 transition-colors"></button>
+                        <button data-position="bottom-left" class="aspect-square border border-gray-600 rounded-md flex items-center justify-center hover:bg-gray-600 transition-colors"></button>
+                        <button data-position="bottom-center" class="aspect-square border border-gray-600 rounded-md flex items-center justify-center hover:bg-gray-600 transition-colors"></button>
+                        <button data-position="bottom-right" class="aspect-square border border-gray-600 rounded-md flex items-center justify-center hover:bg-gray-600 transition-colors"></button>
+                      </div>
+                      <div class="mt-4 pt-4 border-t border-gray-600">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Watermark Adjustments</label>
+                        <div class="space-y-3">
+                            <div>
+                                <label for="watermark-size-slider" class="flex justify-between text-xs text-gray-400"><span>Size</span><span id="watermark-size-value">112px</span></label>
+                                <input id="watermark-size-slider" type="range" min="20" max="400" value="112" class="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-green-500">
+                            </div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label for="watermark-x-offset-input" class="text-xs text-gray-400">Horizontal Offset (px)</label>
+                                    <input id="watermark-x-offset-input" type="number" value="12" class="w-full mt-1 bg-gray-900 text-gray-200 border border-gray-600 rounded-md py-1 px-2 text-sm focus:ring-green-500 focus:border-green-500">
+                                </div>
+                                <div>
+                                    <label for="watermark-y-offset-input" class="text-xs text-gray-400">Vertical Offset (px)</label>
+                                    <input id="watermark-y-offset-input" type="number" value="12" class="w-full mt-1 bg-gray-900 text-gray-200 border border-gray-600 rounded-md py-1 px-2 text-sm focus:ring-green-500 focus:border-green-500">
+                                </div>
+                            </div>
+                        </div>
+                      </div>
+                  </div>
+                  <form id="add-resource-form" class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-600 pt-6 mt-6">
                     <div class="md:col-span-2">
                       <select id="resource-type-select" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded-md py-2 px-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
                         <option value="subtitle">Subtitle</option>
@@ -181,11 +218,20 @@
                       <input type="text" id="addon-lang-input" placeholder="en" required class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded-md py-2 px-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition placeholder-gray-400" />
                     </div>
                     <div class="md:col-span-2 flex flex-col">
-                      <label class="text-sm font-medium text-gray-300 mb-1">URL</label>
-                      <input type="url" id="addon-url-input" required placeholder="https://example.com/resource.vtt" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded-md py-2 px-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition placeholder-gray-400" />
+                      <input type="file" id="addon-file-input" class="hidden" accept=".vtt,.srt">
+                      <label class="text-sm font-medium text-gray-300 mb-1">URL or Upload</label>
+                      <div class="flex items-center gap-2">
+                        <input type="url" id="addon-url-input" required placeholder="https://... or upload a file" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded-md py-2 px-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition placeholder-gray-400 disabled:bg-gray-800 disabled:cursor-not-allowed" />
+                        <button type="button" id="upload-addon-button" class="p-2 bg-gray-600 hover:bg-gray-500 rounded-md text-white transition-colors" aria-label="Upload file">
+                          ${ICONS.upload}
+                        </button>
+                        <button type="button" id="clear-addon-file-button" class="p-2 bg-red-600 hover:bg-red-500 rounded-md text-white transition-colors hidden" aria-label="Clear file selection">
+                          ${ICONS.close}
+                        </button>
+                      </div>
                     </div>
                     <div class="md:col-span-2">
-                      <button type="submit" class="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold py-2 px-4 rounded-md transition-colors">Add Resource by URL</button>
+                      <button type="submit" class="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold py-2 px-4 rounded-md transition-colors">Add Resource</button>
                     </div>
                   </form>
                 </div>
@@ -228,7 +274,7 @@
         html += `<li class="flex items-center justify-between bg-gray-700 p-3 rounded-md">
                    <div class="flex-1 truncate mr-4">
                      <span class="font-mono text-sm text-green-400 bg-gray-800 px-2 py-1 rounded">${source.label}</span>
-                     <p class="text-sm text-gray-300 truncate mt-1" title="${source.src}">${source.src}</p>
+                     <p class="text-sm text-gray-300 truncate mt-1" title="${source.src}">${source.src.startsWith('data:') ? 'Embedded Subtitle Data' : source.src}</p>
                    </div>
                    <button class="remove-resource-btn p-2 text-gray-400 hover:text-red-500 hover:bg-gray-600 rounded-full transition-colors" data-index="${source.originalIndex}" aria-label="Remove source">${ICONS.trash}</button>
                  </li>`;
@@ -242,7 +288,7 @@
         html += `<li class="flex items-center justify-between bg-gray-700 p-3 rounded-md">
                    <div class="flex-1 truncate mr-4">
                      <span class="font-mono text-sm text-yellow-400 bg-gray-800 px-2 py-1 rounded">${track.label} (${track.srclang})</span>
-                     <p class="text-sm text-gray-300 truncate mt-1" title="${track.src}">${track.src}</p>
+                     <p class="text-sm text-gray-300 truncate mt-1" title="${track.src}">${track.src.startsWith('data:') ? 'Embedded Subtitle Data' : track.src}</p>
                    </div>
                    <button class="remove-resource-btn p-2 text-gray-400 hover:text-red-500 hover:bg-gray-600 rounded-full transition-colors" data-index="${track.originalIndex}" aria-label="Remove subtitle">${ICONS.trash}</button>
                  </li>`;
@@ -296,6 +342,43 @@
     if (state.watermarkUrl) {
         watermarkImg.src = state.watermarkUrl;
         watermarkImg.classList.remove('hidden');
+
+        watermarkImg.style.width = `${state.watermarkSize}px`;
+        watermarkImg.style.height = 'auto';
+
+        const [posY, posX] = state.watermarkPosition.split('-');
+        
+        // Use signed offsets for transform calculation
+        const xOffset = (posX === 'right' ? -1 : 1) * state.watermarkXOffset;
+        const yOffset = (posY === 'bottom' ? -1 : 1) * state.watermarkYOffset;
+        
+        // Reset all positioning properties
+        watermarkImg.style.top = 'auto';
+        watermarkImg.style.left = 'auto';
+        watermarkImg.style.right = 'auto';
+        watermarkImg.style.bottom = 'auto';
+        
+        let transformX = '0';
+        let transformY = '0';
+
+        if (posY === 'top') watermarkImg.style.top = '0px';
+        if (posY === 'bottom') watermarkImg.style.bottom = '0px';
+        if (posY === 'middle') {
+            watermarkImg.style.top = '50%';
+            transformY = `-50%`;
+        }
+        transformY = `calc(${transformY} + ${yOffset}px)`;
+        
+
+        if (posX === 'left') watermarkImg.style.left = '0px';
+        if (posX === 'right') watermarkImg.style.right = '0px';
+        if (posX === 'center') {
+            watermarkImg.style.left = '50%';
+            transformX = `-50%`;
+        }
+        transformX = `calc(${transformX} + ${xOffset}px)`;
+        
+        watermarkImg.style.transform = `translate(${transformX}, ${transformY})`;
     } else {
         watermarkImg.classList.add('hidden');
     }
@@ -324,6 +407,10 @@
       let url = `${basePlayerUrl}?embed=true&sources=${encodedSources}`;
       if (state.watermarkUrl.trim()) {
         url += `&watermark=${encodeURIComponent(state.watermarkUrl)}`;
+        url += `&wmpos=${state.watermarkPosition}`;
+        url += `&wmsize=${state.watermarkSize}`;
+        url += `&wmx=${state.watermarkXOffset}`;
+        url += `&wmy=${state.watermarkYOffset}`;
       }
       state.generatedUrl = url;
       urlInput.value = url;
@@ -354,7 +441,26 @@
       state.watermarkUrl = url;
       renderVideoPlayer();
       updateGeneratedUrl();
-  }
+  };
+
+  const updateWatermarkPositionUI = () => {
+    const grid = document.getElementById('watermark-position-grid');
+    if (!grid) return;
+    const buttons = grid.querySelectorAll('button');
+    buttons.forEach(button => {
+        const isActive = button.dataset.position === state.watermarkPosition;
+        button.classList.toggle('bg-green-600', isActive);
+        button.classList.toggle('border-green-500', isActive);
+        button.innerHTML = isActive ? `<div class="w-2 h-2 rounded-full bg-white"></div>` : '';
+    });
+  };
+
+  const handleWatermarkPositionChange = (position) => {
+    state.watermarkPosition = position;
+    updateWatermarkPositionUI();
+    renderVideoPlayer();
+    updateGeneratedUrl();
+  };
   
   function setupGeneratorListeners() {
     document.getElementById('load-video-button').addEventListener('click', () => {
@@ -370,16 +476,31 @@
     const resourceTypeSelect = document.getElementById('resource-type-select');
     const addonLabelInput = document.getElementById('addon-label-input');
     const addonLangInput = document.getElementById('addon-lang-input');
+    const addonUrlInput = document.getElementById('addon-url-input');
+    const addonFileInput = document.getElementById('addon-file-input');
+    const uploadAddonButton = document.getElementById('upload-addon-button');
+    const clearAddonFileButton = document.getElementById('clear-addon-file-button');
+
+    const clearAddonFileSelection = () => {
+        addonUrlInput.value = '';
+        addonUrlInput.disabled = false;
+        delete addonUrlInput.dataset.dataUrl;
+        addonFileInput.value = ''; // Clear file input's internal state
+        uploadAddonButton.classList.remove('hidden');
+        clearAddonFileButton.classList.add('hidden');
+    };
+
     resourceTypeSelect.addEventListener('change', (e) => {
         const isSubtitle = e.target.value === 'subtitle';
         addonLabelInput.placeholder = isSubtitle ? "English" : "720p";
         addonLangInput.disabled = !isSubtitle;
         addonLangInput.required = isSubtitle;
+        clearAddonFileSelection();
     });
 
     document.getElementById('add-resource-form').addEventListener('submit', (e) => {
         e.preventDefault();
-        const addonUrl = document.getElementById('addon-url-input').value;
+        const addonUrl = addonUrlInput.dataset.dataUrl || addonUrlInput.value;
         const addonLabel = addonLabelInput.value;
         const addonLang = addonLangInput.value;
         const resourceType = resourceTypeSelect.value;
@@ -392,12 +513,76 @@
         }
         handleAddResource(newResource);
         e.target.reset();
+        clearAddonFileSelection();
         resourceTypeSelect.dispatchEvent(new Event('change')); // Reset placeholders
     });
     
     document.getElementById('watermark-url-input').addEventListener('input', (e) => {
         handleWatermarkChange(e.target.value);
     });
+
+    document.getElementById('watermark-position-grid').addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON' && e.target.dataset.position) {
+            handleWatermarkPositionChange(e.target.dataset.position);
+        }
+    });
+    
+    // --- New Watermark Adjustment Listeners ---
+    const wmSizeSlider = document.getElementById('watermark-size-slider');
+    const wmSizeValue = document.getElementById('watermark-size-value');
+    const wmXInput = document.getElementById('watermark-x-offset-input');
+    const wmYInput = document.getElementById('watermark-y-offset-input');
+
+    const handleWatermarkAdjust = () => {
+        state.watermarkSize = parseInt(wmSizeSlider.value, 10);
+        state.watermarkXOffset = parseInt(wmXInput.value, 10) || 0;
+        state.watermarkYOffset = parseInt(wmYInput.value, 10) || 0;
+        wmSizeValue.textContent = `${state.watermarkSize}px`;
+        renderVideoPlayer();
+        updateGeneratedUrl();
+    };
+
+    wmSizeSlider.addEventListener('input', handleWatermarkAdjust);
+    wmXInput.addEventListener('input', handleWatermarkAdjust);
+    wmYInput.addEventListener('input', handleWatermarkAdjust);
+    
+    uploadAddonButton.addEventListener('click', () => {
+        addonFileInput.click();
+    });
+
+    clearAddonFileButton.addEventListener('click', clearAddonFileSelection);
+
+    addonFileInput.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            let content = event.target.result;
+            if (file.name.toLowerCase().endsWith('.srt')) {
+                content = 'WEBVTT\n\n' + content.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+            }
+            
+            const base64Content = btoa(unescape(encodeURIComponent(content)));
+            const dataUrl = `data:text/vtt;base64,${base64Content}`;
+            
+            addonUrlInput.value = `File: ${file.name}`;
+            addonUrlInput.disabled = true;
+            addonUrlInput.dataset.dataUrl = dataUrl;
+            uploadAddonButton.classList.add('hidden');
+            clearAddonFileButton.classList.remove('hidden');
+            
+            const parts = file.name.replace(/\.(vtt|srt)$/i, '').split('.');
+            if (parts.length > 1) {
+                addonLangInput.value = parts.pop();
+                addonLabelInput.value = parts.join('.');
+            } else {
+                addonLabelInput.value = parts[0];
+            }
+        };
+        reader.readAsText(file);
+    });
+
 
     const copyButton = document.getElementById('copy-button');
     copyButton.addEventListener('click', () => {
@@ -412,6 +597,8 @@
             }, 2500);
         });
     });
+
+    updateWatermarkPositionUI();
   }
 
   function setupPlayerListeners(isEmbed) {
@@ -435,11 +622,31 @@
     const subtitleMenu = document.getElementById('subtitle-menu');
     const settingsMenuBtn = document.getElementById('settings-menu-button');
     const settingsMenu = document.getElementById('settings-menu');
-    const subtitleUploadInput = document.getElementById('subtitle-upload-input');
-
+    
     let controlsTimeout;
-    let localSubtitle = null;
     let activeTrack = null;
+
+    // Player-side state for subtitle styling
+    const playerState = {
+        subtitleFontSize: 1.5, // rem
+        subtitleBottomMargin: 5, // %
+    };
+
+    const updateSubtitleStyles = () => {
+        let styleEl = document.getElementById('subtitle-styles');
+        if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = 'subtitle-styles';
+            document.head.appendChild(styleEl);
+        }
+        styleEl.innerHTML = `
+        #video-element::cue {
+            font-size: ${playerState.subtitleFontSize}rem !important;
+            bottom: ${playerState.subtitleBottomMargin}% !important;
+            background-color: rgba(0, 0, 0, 0.75) !important;
+        }
+        `;
+    };
 
     const formatTime = (timeInSeconds) => {
       if (isNaN(timeInSeconds)) return '00:00';
@@ -536,23 +743,16 @@
     });
 
     const updateSubtitleMenu = () => {
-        subtitleMenu.innerHTML = ''; // Clear existing
-        // Upload button
-        const uploadBtn = document.createElement('button');
-        uploadBtn.className = 'flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-white/20';
-        uploadBtn.innerHTML = `${ICONS.upload} <span>Upload Subtitle</span>`;
-        uploadBtn.onclick = () => subtitleUploadInput.click();
-        subtitleMenu.appendChild(uploadBtn);
-        subtitleMenu.appendChild(document.createElement('div')).className = 'border-t border-white/20 my-1';
+        subtitleMenu.innerHTML = '';
+        subtitleMenuBtn.disabled = video.textTracks.length === 0;
+        if(video.textTracks.length === 0) return;
 
-        // Off button
         const offBtn = document.createElement('button');
         offBtn.className = `block w-full text-left px-3 py-1 hover:bg-white/20 ${!activeTrack ? 'bg-green-500' : ''}`;
         offBtn.textContent = 'Off';
         offBtn.onclick = () => setActiveSubtitle(null);
         subtitleMenu.appendChild(offBtn);
         
-        // Render tracks
         for (let i = 0; i < video.textTracks.length; i++) {
             const track = video.textTracks[i];
             const btn = document.createElement('button');
@@ -574,73 +774,85 @@
         subtitleMenu.classList.add('hidden');
     };
     
-    subtitleUploadInput.addEventListener('change', (e) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            if (localSubtitle) URL.revokeObjectURL(localSubtitle.src);
-            
-            const fileUrl = URL.createObjectURL(file);
-            localSubtitle = {
-                src: fileUrl,
-                label: file.name.replace(/\.[^/.]+$/, ''),
-                srclang: `local-${file.name}`,
-            };
-
-            const trackEl = document.createElement('track');
-            trackEl.kind = 'subtitles';
-            trackEl.src = localSubtitle.src;
-            trackEl.srclang = localSubtitle.srclang;
-            trackEl.label = localSubtitle.label;
-            trackEl.default = true;
-            video.appendChild(trackEl);
-            
-            // Wait for track to be processed
-            setTimeout(() => {
-                setActiveSubtitle(localSubtitle.srclang);
-            }, 100);
-        }
-        e.target.value = '';
-    });
-    
     const updateSettingsMenu = () => {
-        settingsMenu.innerHTML = '';
         const rates = [0.5, 0.75, 1, 1.25, 1.5, 2, 5];
         const fits = [{value: 'contain', label: 'Fit (Default)'}, {value: 'cover', label: 'Fill (Crop)'}];
         
-        settingsMenu.innerHTML += '<p class="px-3 py-1 font-semibold text-gray-300">Speed</p>';
+        let menuHTML = '<p class="px-3 py-1 font-semibold text-gray-300 text-sm">Speed</p>';
         rates.forEach(rate => {
-            const btn = document.createElement('button');
-            btn.className = `block w-full text-left px-3 py-1 hover:bg-white/20 ${video.playbackRate === rate ? 'bg-green-500' : ''}`;
-            btn.textContent = rate === 1 ? 'Normal' : `${rate}x`;
-            btn.onclick = () => {
-                video.playbackRate = rate;
-                settingsMenu.classList.add('hidden');
-                updateSettingsMenu();
-            };
-            settingsMenu.appendChild(btn);
+            menuHTML += `<button data-action="set-speed" data-value="${rate}" class="block w-full text-left px-3 py-1 text-sm hover:bg-white/20 ${video.playbackRate === rate ? 'bg-green-500' : ''}">${rate === 1 ? 'Normal' : `${rate}x`}</button>`;
         });
         
-        settingsMenu.innerHTML += '<div class="border-t border-white/20 my-1"></div><p class="px-3 py-1 font-semibold text-gray-300">Fit</p>';
+        menuHTML += '<div class="border-t border-white/20 my-1"></div><p class="px-3 py-1 font-semibold text-gray-300 text-sm">Fit</p>';
         fits.forEach(fit => {
-            const btn = document.createElement('button');
             const isContain = video.classList.contains('object-contain');
-            btn.className = `block w-full text-left px-3 py-1 hover:bg-white/20 ${((fit.value === 'contain' && isContain) || (fit.value === 'cover' && !isContain)) ? 'bg-green-500' : ''}`;
-            btn.textContent = fit.label;
-            btn.onclick = () => {
-                video.classList.toggle('object-contain', fit.value === 'contain');
-                video.classList.toggle('object-cover', fit.value === 'cover');
-                settingsMenu.classList.add('hidden');
-                updateSettingsMenu();
-            };
-            settingsMenu.appendChild(btn);
+            const isActive = ((fit.value === 'contain' && isContain) || (fit.value === 'cover' && !isContain));
+            menuHTML += `<button data-action="set-fit" data-value="${fit.value}" class="block w-full text-left px-3 py-1 text-sm hover:bg-white/20 ${isActive ? 'bg-green-500' : ''}">${fit.label}</button>`;
         });
+
+        menuHTML += '<div class="border-t border-white/20 my-1"></div><p class="px-3 py-1 font-semibold text-gray-300 text-sm">Subtitles</p>';
+        menuHTML += `
+            <div class="px-3 py-1 text-sm">
+                <label class="flex justify-between text-xs text-gray-400">
+                    <span>Font Size</span>
+                    <span id="subtitle-size-value">${playerState.subtitleFontSize.toFixed(1)}rem</span>
+                </label>
+                <input data-action="set-sub-size" type="range" min="1" max="3.5" step="0.1" value="${playerState.subtitleFontSize}" class="w-full h-1 accent-green-500 cursor-pointer mt-1">
+            </div>
+        `;
+        menuHTML += `
+            <div class="px-3 py-1 text-sm">
+                <label class="flex justify-between text-xs text-gray-400">
+                    <span>Vertical Position</span>
+                    <span id="subtitle-pos-value">${playerState.subtitleBottomMargin}%</span>
+                </label>
+                <input data-action="set-sub-pos" type="range" min="2" max="80" step="1" value="${playerState.subtitleBottomMargin}" class="w-full h-1 accent-green-500 cursor-pointer mt-1">
+            </div>
+        `;
+
+        settingsMenu.innerHTML = menuHTML;
     };
 
     settingsMenuBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         subtitleMenu.classList.add('hidden');
-        settingsMenu.classList.toggle('hidden');
-        updateSettingsMenu();
+        const isHidden = settingsMenu.classList.toggle('hidden');
+        if (!isHidden) {
+            updateSettingsMenu();
+        }
+    });
+
+    settingsMenu.addEventListener('click', (e) => {
+        const target = e.target;
+        if (target.tagName === 'BUTTON' && target.dataset.action) {
+            const action = target.dataset.action;
+            const value = target.dataset.value;
+            if (action === 'set-speed') video.playbackRate = parseFloat(value);
+            if (action === 'set-fit') {
+                video.classList.toggle('object-contain', value === 'contain');
+                video.classList.toggle('object-cover', value === 'cover');
+            }
+            settingsMenu.classList.add('hidden');
+        }
+    });
+
+    settingsMenu.addEventListener('input', (e) => {
+        const target = e.target;
+        if (target.tagName === 'INPUT' && target.dataset.action) {
+            const action = target.dataset.action;
+            const value = target.value;
+            if (action === 'set-sub-size') {
+                const newValue = parseFloat(value);
+                playerState.subtitleFontSize = newValue;
+                document.getElementById('subtitle-size-value').textContent = `${newValue.toFixed(1)}rem`;
+            }
+            if (action === 'set-sub-pos') {
+                const newValue = parseInt(value, 10);
+                playerState.subtitleBottomMargin = newValue;
+                document.getElementById('subtitle-pos-value').textContent = `${newValue}%`;
+            }
+            updateSubtitleStyles();
+        }
     });
     
     subtitleMenuBtn.addEventListener('click', (e) => {
@@ -666,6 +878,7 @@
           controlsContainer.classList.add('opacity-0');
         }
     });
+    updateSubtitleStyles();
   }
 
   // --- INITIALIZATION ---
@@ -676,18 +889,21 @@
     const params = new URLSearchParams(window.location.search);
     const embed = params.get('embed');
     const sourcesParam = params.get('sources');
-    const watermarkParam = params.get('watermark');
 
     if (embed === 'true' && sourcesParam) {
       state.isEmbedMode = true;
       try {
         state.sources = JSON.parse(decodeURIComponent(sourcesParam));
-        if (watermarkParam) {
-          state.watermarkUrl = decodeURIComponent(watermarkParam);
-        }
+        state.watermarkUrl = params.get('watermark') ? decodeURIComponent(params.get('watermark')) : '';
+        state.watermarkPosition = params.get('wmpos') || 'top-right';
+        state.watermarkSize = parseInt(params.get('wmsize'), 10) || 112;
+        state.watermarkXOffset = parseInt(params.get('wmx'), 10) || 12;
+        state.watermarkYOffset = parseInt(params.get('wmy'), 10) || 12;
       } catch (e) {
         console.error("Failed to parse sources from URL", e);
         state.sources = [];
+        state.watermarkUrl = '';
+        state.watermarkPosition = 'top-right';
       }
       
       const appView = document.getElementById('app-view');
@@ -714,6 +930,10 @@
     } else {
       state.isEmbedMode = false;
       document.getElementById('watermark-url-input').value = state.watermarkUrl;
+      document.getElementById('watermark-size-slider').value = state.watermarkSize;
+      document.getElementById('watermark-size-value').textContent = `${state.watermarkSize}px`;
+      document.getElementById('watermark-x-offset-input').value = state.watermarkXOffset;
+      document.getElementById('watermark-y-offset-input').value = state.watermarkYOffset;
       renderSourceList();
       renderVideoPlayer();
       updateGeneratedUrl();
