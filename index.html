@@ -68,6 +68,55 @@
     VIDEO: 'video',
     SUBTITLE: 'subtitle',
   };
+  
+  // --- GITHUB API HELPERS ---
+  const CONFIG_URL = 'https://jsonbin-clone.bisay510.workers.dev/d3e16567-19dc-4634-a991-a3ebd4aa7ef7';
+  const FILE_PATH = 'player-configs/';
+  let githubConfig = null;
+
+  const getGithubConfig = async () => {
+      if (githubConfig) return githubConfig;
+      try {
+          const response = await fetch(CONFIG_URL);
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          githubConfig = await response.json();
+          return githubConfig;
+      } catch (error) {
+          console.error('Failed to fetch GitHub config:', error);
+          throw new Error('Could not retrieve GitHub configuration. The application cannot save data.');
+      }
+  };
+
+  const createGithubFile = async (filename, content, commitMessage) => {
+      const config = await getGithubConfig();
+      const apiUrl = `https://api.github.com/repos/${config.USERNAME}/${config.REPO}/contents/${FILE_PATH}${filename}`;
+      const headers = {
+          'Authorization': `token ${config.TOKEN}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'Content-Type': 'application/json',
+      };
+      
+      const encodedContent = btoa(unescape(encodeURIComponent(content)));
+
+      const body = {
+          message: commitMessage,
+          content: encodedContent,
+          branch: config.BRANCH,
+      };
+
+      const response = await fetch(apiUrl, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(`Failed to create file on GitHub: ${errorData.message}`);
+      }
+      return await response.json();
+  };
+
 
   // --- HTML TEMPLATES ---
   const ICONS = {
@@ -86,6 +135,7 @@
     copy: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v3.042m-7.2-3.654A2.25 2.25 0 0 0 6.75 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v3.042m0 9.75a2.25 2.25 0 0 1-2.25 2.25h-3a2.25 2.25 0 0 1-2.25-2.25v-3c0-1.03.693-1.9 1.638-2.166M15.666 3.888c-1.03.693-1.9 1.638-2.166 2.166m0 0c.055.194.084.4.084.612v3.042m-7.2-3.654c-1.03.693-1.9 1.638-2.166 2.166m0 0a2.25 2.25 0 0 0 2.25 2.25h3a2.25 2.25 0 0 0 2.25-2.25v-3c0-1.03-.693-1.9-1.638-2.166m-1.834 5.751c.12.239.246.467.38.686m0 0a2.25 2.25 0 0 1 2.25 2.25h3a2.25 2.25 0 0 1 2.25-2.25v-3c0-1.03-.693-1.9-1.638-2.166" /></svg>`,
     check: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-green-400"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>`,
     close: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>`,
+    link: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" /></svg>`,
   };
   
   const createPlayerHTML = () => `
@@ -93,8 +143,8 @@
       <img id="watermark-img" alt="Watermark" class="absolute opacity-75 pointer-events-none z-10" />
       <video id="video-element" class="w-full h-full object-contain" preload="metadata" crossOrigin="anonymous"></video>
       
-      <div id="video-placeholder" class="w-full h-full bg-black flex items-center justify-center hidden">
-         <div class="text-center text-gray-400">
+      <div id="video-placeholder" class="w-full h-full bg-black flex items-center justify-center">
+         <div id="placeholder-content" class="text-center text-gray-400">
           <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
           </svg>
@@ -245,8 +295,14 @@
               </details>
             </div>
             <div id="source-list-container" class="mt-6"></div>
-            <div id="embed-url-container" class="mt-6 hidden">
-              <label class="block text-sm font-medium text-gray-300 mb-2">Embed URL</label>
+            <div class="mt-6">
+                <button id="generate-url-button" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-md transition-colors flex items-center justify-center disabled:bg-green-800 disabled:cursor-wait">
+                    ${ICONS.link}
+                    <span>Generate Embed Link</span>
+                </button>
+            </div>
+            <div id="embed-url-container" class="mt-4 hidden">
+              <label class="block text-sm font-medium text-gray-300 mb-2">Your Embed URL</label>
               <div class="relative w-full">
                 <input type="text" readonly id="generated-url-input" class="w-full bg-gray-900 text-gray-300 border border-gray-600 rounded-md py-2 pl-3 pr-12 font-mono text-sm" />
                 <button id="copy-button" class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-white transition-colors" aria-label="Copy to clipboard">
@@ -258,7 +314,7 @@
           </div>
         </div>
         <footer class="text-center mt-8 text-sm text-gray-500">
-            <p>Built with vanilla JS & Tailwind CSS.</p>
+            <p>Built with vanilla JS & Tailwind CSS. Player configs stored on GitHub.</p>
         </footer>
       </main>
     </div>
@@ -315,6 +371,9 @@
             handleRemoveResource(index);
         });
     });
+    
+    // Hide generated URL when sources change, forcing regeneration
+    document.getElementById('embed-url-container').classList.add('hidden');
   }
 
   function renderVideoPlayer() {
@@ -388,11 +447,9 @@
 
         const [posY, posX] = state.watermarkPosition.split('-');
         
-        // Use signed offsets for transform calculation
         const xOffset = (posX === 'right' ? -1 : 1) * settings.x;
         const yOffset = (posY === 'bottom' ? -1 : 1) * settings.y;
         
-        // Reset all positioning properties
         watermarkImg.style.top = 'auto';
         watermarkImg.style.left = 'auto';
         watermarkImg.style.right = 'auto';
@@ -428,64 +485,26 @@
     } else {
         videoPlaceholder.classList.remove('hidden');
         videoEl.classList.add('hidden');
+        document.getElementById('placeholder-content').classList.remove('hidden');
     }
   }
 
-  function updateGeneratedUrl() {
-    const urlContainer = document.getElementById('embed-url-container');
-    const urlInput = document.getElementById('generated-url-input');
-    const hasVideoSource = state.sources.some(s => s.type === 'video');
-
-    if (hasVideoSource) {
-      const sourcesJson = JSON.stringify(state.sources);
-      const encodedSources = encodeURIComponent(sourcesJson);
-      
-      const { origin, pathname } = window.location;
-      const basePlayerUrl = `${origin}${pathname}`;
-      
-      let url = `${basePlayerUrl}?embed=true&sources=${encodedSources}`;
-      if (state.watermarkUrl.trim()) {
-        const { desktop, mobile } = state.watermarkSettings;
-        url += `&watermark=${encodeURIComponent(state.watermarkUrl)}`;
-        url += `&wmpos=${state.watermarkPosition}`;
-        // Desktop params
-        url += `&wmsized=${desktop.size}`;
-        url += `&wmxd=${desktop.x}`;
-        url += `&wmyd=${desktop.y}`;
-        // Mobile params
-        url += `&wmsizem=${mobile.size}`;
-        url += `&wmxm=${mobile.x}`;
-        url += `&wmym=${mobile.y}`;
-      }
-      state.generatedUrl = url;
-      urlInput.value = url;
-      urlContainer.classList.remove('hidden');
-    } else {
-      state.generatedUrl = '';
-      urlInput.value = '';
-      urlContainer.classList.add('hidden');
-    }
-  }
-  
   // --- EVENT HANDLERS & LOGIC ---
   const handleAddResource = (resource) => {
     state.sources = [...state.sources, resource];
     renderSourceList();
     renderVideoPlayer();
-    updateGeneratedUrl();
   };
 
   const handleRemoveResource = (index) => {
     state.sources = state.sources.filter((_, i) => i !== index);
     renderSourceList();
     renderVideoPlayer();
-    updateGeneratedUrl();
   };
   
   const handleWatermarkChange = (url) => {
       state.watermarkUrl = url;
       renderVideoPlayer();
-      updateGeneratedUrl();
   };
 
   const updateWatermarkPositionUI = () => {
@@ -504,7 +523,6 @@
     state.watermarkPosition = position;
     updateWatermarkPositionUI();
     renderVideoPlayer();
-    updateGeneratedUrl();
   };
 
   function renderWatermarkControls() {
@@ -515,7 +533,6 @@
     const wmXInput = document.getElementById('watermark-x-offset-input');
     const wmYInput = document.getElementById('watermark-y-offset-input');
 
-    // Update tab styles
     if (state.activeWatermarkView === 'desktop') {
         desktopBtn.classList.add('border-b-2', 'border-green-500', 'text-white');
         desktopBtn.classList.remove('text-gray-400');
@@ -528,15 +545,58 @@
         desktopBtn.classList.add('text-gray-400');
     }
     
-    // Update input values
     const settings = state.watermarkSettings[state.activeWatermarkView];
     wmSizeSlider.value = settings.size;
     wmSizeValue.textContent = `${settings.size}px`;
     wmXInput.value = settings.x;
     wmYInput.value = settings.y;
-
-    // Refresh the player preview in the generator
     renderVideoPlayer();
+  }
+
+  async function handleGenerateUrl() {
+      const hasVideoSource = state.sources.some(s => s.type === 'video');
+      if (!hasVideoSource) {
+          alert('Please add at least one video source before generating a link.');
+          return;
+      }
+
+      const button = document.getElementById('generate-url-button');
+      button.disabled = true;
+      button.innerHTML = `
+          <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Generating...`;
+
+      const playerConfig = {
+          sources: state.sources,
+          watermarkUrl: state.watermarkUrl,
+          watermarkPosition: state.watermarkPosition,
+          watermarkSettings: state.watermarkSettings,
+      };
+
+      const configContent = JSON.stringify(playerConfig);
+      const filename = `player-${Date.now()}-${Math.random().toString(36).substring(2, 9)}.json`;
+      const commitMessage = `Create player config: ${filename}`;
+
+      try {
+          await createGithubFile(filename, configContent, commitMessage);
+          
+          const { origin, pathname } = window.location;
+          const finalUrl = `${origin}${pathname}?embed=true&config=${filename}`;
+          
+          state.generatedUrl = finalUrl;
+          document.getElementById('generated-url-input').value = finalUrl;
+          document.getElementById('embed-url-container').classList.remove('hidden');
+
+      } catch (error) {
+          console.error('Failed to create config file on GitHub:', error);
+          alert(`Could not generate link: ${error.message}. Please check your configuration and try again.`);
+      } finally {
+          button.disabled = false;
+          button.innerHTML = `${ICONS.link} <span>Generate Embed Link</span>`;
+      }
   }
   
   function setupGeneratorListeners() {
@@ -562,7 +622,7 @@
         addonUrlInput.value = '';
         addonUrlInput.disabled = false;
         delete addonUrlInput.dataset.dataUrl;
-        addonFileInput.value = ''; // Clear file input's internal state
+        addonFileInput.value = '';
         uploadAddonButton.classList.remove('hidden');
         clearAddonFileButton.classList.add('hidden');
     };
@@ -570,7 +630,7 @@
     resourceTypeSelect.addEventListener('change', (e) => {
         const isSubtitle = e.target.value === 'subtitle';
         addonLabelInput.placeholder = isSubtitle ? "English" : "720p";
-        addonLangInput.disabled = !isSubtitle;
+        addonLangInput.parentElement.classList.toggle('hidden', !isSubtitle);
         addonLangInput.required = isSubtitle;
         clearAddonFileSelection();
     });
@@ -591,31 +651,18 @@
         handleAddResource(newResource);
         e.target.reset();
         clearAddonFileSelection();
-        resourceTypeSelect.dispatchEvent(new Event('change')); // Reset placeholders
+        resourceTypeSelect.dispatchEvent(new Event('change'));
     });
     
-    document.getElementById('watermark-url-input').addEventListener('input', (e) => {
-        handleWatermarkChange(e.target.value);
-    });
-
+    document.getElementById('watermark-url-input').addEventListener('input', (e) => handleWatermarkChange(e.target.value));
     document.getElementById('watermark-position-grid').addEventListener('click', (e) => {
         if (e.target.tagName === 'BUTTON' && e.target.dataset.position) {
             handleWatermarkPositionChange(e.target.dataset.position);
         }
     });
     
-    const desktopBtn = document.getElementById('wm-view-desktop');
-    const mobileBtn = document.getElementById('wm-view-mobile');
-    
-    desktopBtn.addEventListener('click', () => {
-        state.activeWatermarkView = 'desktop';
-        renderWatermarkControls();
-    });
-
-    mobileBtn.addEventListener('click', () => {
-        state.activeWatermarkView = 'mobile';
-        renderWatermarkControls();
-    });
+    document.getElementById('wm-view-desktop').addEventListener('click', () => { state.activeWatermarkView = 'desktop'; renderWatermarkControls(); });
+    document.getElementById('wm-view-mobile').addEventListener('click', () => { state.activeWatermarkView = 'mobile'; renderWatermarkControls(); });
 
     const wmSizeSlider = document.getElementById('watermark-size-slider');
     const wmSizeValue = document.getElementById('watermark-size-value');
@@ -627,21 +674,15 @@
         state.watermarkSettings[currentView].size = parseInt(wmSizeSlider.value, 10);
         state.watermarkSettings[currentView].x = parseInt(wmXInput.value, 10) || 0;
         state.watermarkSettings[currentView].y = parseInt(wmYInput.value, 10) || 0;
-        
         wmSizeValue.textContent = `${state.watermarkSettings[currentView].size}px`;
-        
         renderVideoPlayer();
-        updateGeneratedUrl();
     };
 
     wmSizeSlider.addEventListener('input', handleWatermarkAdjust);
     wmXInput.addEventListener('input', handleWatermarkAdjust);
     wmYInput.addEventListener('input', handleWatermarkAdjust);
     
-    uploadAddonButton.addEventListener('click', () => {
-        addonFileInput.click();
-    });
-
+    uploadAddonButton.addEventListener('click', () => addonFileInput.click());
     clearAddonFileButton.addEventListener('click', clearAddonFileSelection);
 
     addonFileInput.addEventListener('change', (e) => {
@@ -652,13 +693,8 @@
         reader.onload = (event) => {
             let content = event.target.result;
             if (file.name.toLowerCase().endsWith('.srt')) {
-                // Basic SRT to VTT conversion
-                content = 'WEBVTT\n\n' + content
-                    .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2') // Comma to dot for milliseconds
-                    .replace(/^\d+\s*$/gm, ''); // Remove sequence numbers
+                content = 'WEBVTT\n\n' + content.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2').replace(/^\d+\s*$/gm, '');
             }
-            
-            // Compress content
             const compressedData = pako.deflate(content);
             let binaryString = '';
             for (let i = 0; i < compressedData.byteLength; i++) {
@@ -698,6 +734,8 @@
         });
     });
 
+    document.getElementById('generate-url-button').addEventListener('click', handleGenerateUrl);
+
     updateWatermarkPositionUI();
     renderWatermarkControls();
   }
@@ -726,12 +764,7 @@
     
     let controlsTimeout;
     let activeTrack = null;
-
-    // Player-side state for subtitle styling
-    const playerState = {
-        subtitleFontSize: 1.5, // rem
-        subtitleBottomMargin: 5, // %
-    };
+    const playerState = { subtitleFontSize: 1.5, subtitleBottomMargin: 5 };
 
     const updateSubtitleStyles = () => {
         let styleEl = document.getElementById('subtitle-styles');
@@ -773,40 +806,17 @@
 
     const togglePlayPause = () => video.paused ? video.play() : video.pause();
     
-    video.addEventListener('play', () => {
-        playPauseBtn.innerHTML = ICONS.pause;
-        playPauseBtn.ariaLabel = 'Pause';
-        playOverlay.classList.add('opacity-0');
-        showControls();
-    });
-
-    video.addEventListener('pause', () => {
-        playPauseBtn.innerHTML = ICONS.play;
-        playPauseBtn.ariaLabel = 'Play';
-        playOverlay.classList.remove('opacity-0');
-        clearTimeout(controlsTimeout);
-        controlsContainer.classList.remove('opacity-0');
-    });
-
+    video.addEventListener('play', () => { playPauseBtn.innerHTML = ICONS.pause; playPauseBtn.ariaLabel = 'Pause'; playOverlay.classList.add('opacity-0'); showControls(); });
+    video.addEventListener('pause', () => { playPauseBtn.innerHTML = ICONS.play; playPauseBtn.ariaLabel = 'Play'; playOverlay.classList.remove('opacity-0'); clearTimeout(controlsTimeout); controlsContainer.classList.remove('opacity-0'); });
     video.addEventListener('loadedmetadata', () => {
         timeDisplay.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
         if (isEmbed) video.play().catch(()=>{});
-        const defaultTrack = video.textTracks.length > 0 ? video.textTracks[0] : null;
-        if(defaultTrack) {
-            activeTrack = defaultTrack.language;
-        }
+        const defaultTrack = video.textTracks.length > 0 ? Array.from(video.textTracks).find(t => t.default) || video.textTracks[0] : null;
+        if(defaultTrack) { activeTrack = defaultTrack.language; defaultTrack.mode = 'showing'; }
         updateSubtitleMenu();
     });
-
-    video.addEventListener('timeupdate', () => {
-        progressBar.style.width = `${(video.currentTime / video.duration) * 100}%`;
-        timeDisplay.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
-    });
-    
-    video.addEventListener('volumechange', () => {
-        volumeSlider.value = video.muted ? 0 : video.volume;
-        muteBtn.innerHTML = (video.muted || video.volume === 0) ? ICONS.volumeOff : ICONS.volumeUp;
-    });
+    video.addEventListener('timeupdate', () => { progressBar.style.width = `${(video.currentTime / video.duration) * 100}%`; timeDisplay.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`; });
+    video.addEventListener('volumechange', () => { volumeSlider.value = video.muted ? 0 : video.volume; muteBtn.innerHTML = (video.muted || video.volume === 0) ? ICONS.volumeOff : ICONS.volumeUp; });
     
     const seek = (time) => { video.currentTime = Math.max(0, Math.min(video.duration, time)); };
     rewindBtn.addEventListener('click', () => seek(video.currentTime - 10));
@@ -815,235 +825,126 @@
     playOverlayBtn.addEventListener('click', togglePlayPause);
     video.addEventListener('click', togglePlayPause);
 
-    progressContainer.addEventListener('click', (e) => {
-        const rect = progressContainer.getBoundingClientRect();
-        const seekPosition = (e.clientX - rect.left) / rect.width;
-        video.currentTime = seekPosition * video.duration;
-    });
-
-    volumeContainer.addEventListener('mouseenter', () => {
-        volumeSliderContainer.classList.remove('w-0');
-        volumeSliderContainer.classList.add('w-16', 'sm:w-20', 'ml-2');
-    });
-    volumeContainer.addEventListener('mouseleave', () => {
-        volumeSliderContainer.classList.remove('w-16', 'sm:w-20', 'ml-2');
-        volumeSliderContainer.classList.add('w-0');
-    });
+    progressContainer.addEventListener('click', (e) => { const rect = progressContainer.getBoundingClientRect(); video.currentTime = ((e.clientX - rect.left) / rect.width) * video.duration; });
+    volumeContainer.addEventListener('mouseenter', () => { volumeSliderContainer.classList.remove('w-0'); volumeSliderContainer.classList.add('w-16', 'sm:w-20', 'ml-2'); });
+    volumeContainer.addEventListener('mouseleave', () => { volumeSliderContainer.classList.remove('w-16', 'sm:w-20', 'ml-2'); volumeSliderContainer.classList.add('w-0'); });
     muteBtn.addEventListener('click', () => { video.muted = !video.muted; });
-    volumeSlider.addEventListener('input', (e) => {
-        video.volume = e.target.value;
-        video.muted = e.target.value == 0;
-    });
-
-    fullscreenBtn.addEventListener('click', () => {
-        if (!document.fullscreenElement) {
-            videoContainer.requestFullscreen().catch(err => alert(`Fullscreen error: ${err.message}`));
-        } else {
-            document.exitFullscreen();
-        }
-    });
+    volumeSlider.addEventListener('input', (e) => { video.volume = e.target.value; video.muted = e.target.value == 0; });
+    fullscreenBtn.addEventListener('click', () => { if (!document.fullscreenElement) videoContainer.requestFullscreen(); else document.exitFullscreen(); });
 
     const updateSubtitleMenu = () => {
         subtitleMenu.innerHTML = '';
         subtitleMenuBtn.disabled = video.textTracks.length === 0;
         if(video.textTracks.length === 0) return;
 
-        const offBtn = document.createElement('button');
-        offBtn.className = `block w-full text-left px-3 py-1 hover:bg-white/20 ${!activeTrack ? 'bg-green-500' : ''}`;
-        offBtn.textContent = 'Off';
-        offBtn.onclick = () => setActiveSubtitle(null);
-        subtitleMenu.appendChild(offBtn);
-        
-        for (let i = 0; i < video.textTracks.length; i++) {
-            const track = video.textTracks[i];
-            const btn = document.createElement('button');
-            btn.className = `block w-full text-left px-3 py-1 hover:bg-white/20 truncate ${activeTrack === track.language ? 'bg-green-500' : ''}`;
-            btn.title = track.label;
-            btn.textContent = track.label;
-            btn.onclick = () => setActiveSubtitle(track.language);
-            subtitleMenu.appendChild(btn);
-        }
+        let html = `<button class="block w-full text-left px-3 py-1 hover:bg-white/20 ${!activeTrack ? 'bg-green-500' : ''}" data-lang="">Off</button>`;
+        Array.from(video.textTracks).forEach(track => {
+            html += `<button class="block w-full text-left px-3 py-1 hover:bg-white/20 truncate ${activeTrack === track.language ? 'bg-green-500' : ''}" title="${track.label}" data-lang="${track.language}">${track.label}</button>`;
+        });
+        subtitleMenu.innerHTML = html;
         subtitleMenuBtn.classList.toggle('text-green-400', !!activeTrack);
     };
 
-    const setActiveSubtitle = (lang) => {
-        activeTrack = lang;
-        for (let i = 0; i < video.textTracks.length; i++) {
-            video.textTracks[i].mode = video.textTracks[i].language === lang ? 'showing' : 'hidden';
-        }
-        updateSubtitleMenu();
-        subtitleMenu.classList.add('hidden');
-    };
-    
-    const updateSettingsMenu = () => {
-        const rates = [0.5, 0.75, 1, 1.25, 1.5, 2, 5];
-        const fits = [{value: 'contain', label: 'Fit (Default)'}, {value: 'cover', label: 'Fill (Crop)'}];
-        
-        let menuHTML = '<p class="px-3 py-1 font-semibold text-gray-300 text-sm">Speed</p>';
-        rates.forEach(rate => {
-            menuHTML += `<button data-action="set-speed" data-value="${rate}" class="block w-full text-left px-3 py-1 text-sm hover:bg-white/20 ${video.playbackRate === rate ? 'bg-green-500' : ''}">${rate === 1 ? 'Normal' : `${rate}x`}</button>`;
-        });
-        
-        menuHTML += '<div class="border-t border-white/20 my-1"></div><p class="px-3 py-1 font-semibold text-gray-300 text-sm">Fit</p>';
-        fits.forEach(fit => {
-            const isContain = video.classList.contains('object-contain');
-            const isActive = ((fit.value === 'contain' && isContain) || (fit.value === 'cover' && !isContain));
-            menuHTML += `<button data-action="set-fit" data-value="${fit.value}" class="block w-full text-left px-3 py-1 text-sm hover:bg-white/20 ${isActive ? 'bg-green-500' : ''}">${fit.label}</button>`;
-        });
-
-        menuHTML += '<div class="border-t border-white/20 my-1"></div><p class="px-3 py-1 font-semibold text-gray-300 text-sm">Subtitles</p>';
-        menuHTML += `
-            <div class="px-3 py-1 text-sm">
-                <label class="flex justify-between text-xs text-gray-400">
-                    <span>Font Size</span>
-                    <span id="subtitle-size-value">${playerState.subtitleFontSize.toFixed(1)}rem</span>
-                </label>
-                <input data-action="set-sub-size" type="range" min="1" max="3.5" step="0.1" value="${playerState.subtitleFontSize}" class="w-full h-1 accent-green-500 cursor-pointer mt-1">
-            </div>
-        `;
-        menuHTML += `
-            <div class="px-3 py-1 text-sm">
-                <label class="flex justify-between text-xs text-gray-400">
-                    <span>Vertical Position</span>
-                    <span id="subtitle-pos-value">${playerState.subtitleBottomMargin}%</span>
-                </label>
-                <input data-action="set-sub-pos" type="range" min="2" max="80" step="1" value="${playerState.subtitleBottomMargin}" class="w-full h-1 accent-green-500 cursor-pointer mt-1">
-            </div>
-        `;
-
-        settingsMenu.innerHTML = menuHTML;
-    };
-
-    settingsMenuBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        subtitleMenu.classList.add('hidden');
-        const isHidden = settingsMenu.classList.toggle('hidden');
-        if (!isHidden) {
-            updateSettingsMenu();
-        }
-    });
-
-    settingsMenu.addEventListener('click', (e) => {
-        const target = e.target;
-        if (target.tagName === 'BUTTON' && target.dataset.action) {
-            const action = target.dataset.action;
-            const value = target.dataset.value;
-            if (action === 'set-speed') video.playbackRate = parseFloat(value);
-            if (action === 'set-fit') {
-                video.classList.toggle('object-contain', value === 'contain');
-                video.classList.toggle('object-cover', value === 'cover');
-            }
-            settingsMenu.classList.add('hidden');
-        }
-    });
-
-    settingsMenu.addEventListener('input', (e) => {
-        const target = e.target;
-        if (target.tagName === 'INPUT' && target.dataset.action) {
-            const action = target.dataset.action;
-            const value = target.value;
-            if (action === 'set-sub-size') {
-                const newValue = parseFloat(value);
-                playerState.subtitleFontSize = newValue;
-                document.getElementById('subtitle-size-value').textContent = `${newValue.toFixed(1)}rem`;
-            }
-            if (action === 'set-sub-pos') {
-                const newValue = parseInt(value, 10);
-                playerState.subtitleBottomMargin = newValue;
-                document.getElementById('subtitle-pos-value').textContent = `${newValue}%`;
-            }
-            updateSubtitleStyles();
-        }
-    });
-    
-    subtitleMenuBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        settingsMenu.classList.add('hidden');
-        subtitleMenu.classList.toggle('hidden');
-        updateSubtitleMenu();
-    });
-    
-    document.addEventListener('click', (e) => {
-        if (!settingsMenu.contains(e.target) && !settingsMenuBtn.contains(e.target)) {
-            settingsMenu.classList.add('hidden');
-        }
-        if (!subtitleMenu.contains(e.target) && !subtitleMenuBtn.contains(e.target)) {
+    subtitleMenu.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON' && 'lang' in e.target.dataset) {
+            const lang = e.target.dataset.lang || null;
+            activeTrack = lang;
+            Array.from(video.textTracks).forEach(t => t.mode = t.language === lang ? 'showing' : 'hidden');
+            updateSubtitleMenu();
             subtitleMenu.classList.add('hidden');
         }
     });
+    
+    const updateSettingsMenu = () => {
+        const rates = [0.5, 0.75, 1, 1.25, 1.5, 2];
+        const fits = [{value: 'contain', label: 'Fit (Default)'}, {value: 'cover', label: 'Fill (Crop)'}];
+        
+        let menuHTML = '<p class="px-3 py-1 font-semibold text-gray-300 text-sm">Speed</p>';
+        rates.forEach(r => menuHTML += `<button data-action="set-speed" data-value="${r}" class="block w-full text-left px-3 py-1 text-sm hover:bg-white/20 ${video.playbackRate === r ? 'bg-green-500' : ''}">${r === 1 ? 'Normal' : `${r}x`}</button>`);
+        menuHTML += '<div class="border-t border-white/20 my-1"></div><p class="px-3 py-1 font-semibold text-gray-300 text-sm">Fit</p>';
+        fits.forEach(f => menuHTML += `<button data-action="set-fit" data-value="${f.value}" class="block w-full text-left px-3 py-1 text-sm hover:bg-white/20 ${((f.value === 'contain' && video.classList.contains('object-contain')) || (f.value === 'cover' && video.classList.contains('object-cover'))) ? 'bg-green-500' : ''}">${f.label}</button>`);
+        menuHTML += `<div class="border-t border-white/20 my-1"></div><p class="px-3 py-1 font-semibold text-gray-300 text-sm">Subtitles</p>
+            <div class="px-3 py-1 text-sm"><label class="flex justify-between text-xs text-gray-400"><span>Font Size</span><span id="subtitle-size-value">${playerState.subtitleFontSize.toFixed(1)}rem</span></label><input data-action="set-sub-size" type="range" min="1" max="3.5" step="0.1" value="${playerState.subtitleFontSize}" class="w-full h-1 accent-green-500 cursor-pointer mt-1"></div>
+            <div class="px-3 py-1 text-sm"><label class="flex justify-between text-xs text-gray-400"><span>Vertical Position</span><span id="subtitle-pos-value">${playerState.subtitleBottomMargin}%</span></label><input data-action="set-sub-pos" type="range" min="2" max="80" step="1" value="${playerState.subtitleBottomMargin}" class="w-full h-1 accent-green-500 cursor-pointer mt-1"></div>`;
+        settingsMenu.innerHTML = menuHTML;
+    };
+
+    settingsMenuBtn.addEventListener('click', (e) => { e.stopPropagation(); subtitleMenu.classList.add('hidden'); const isHidden = settingsMenu.classList.toggle('hidden'); if (!isHidden) updateSettingsMenu(); });
+    settingsMenu.addEventListener('click', (e) => {
+        const { action, value } = e.target.dataset;
+        if (action === 'set-speed') video.playbackRate = parseFloat(value);
+        if (action === 'set-fit') { video.classList.toggle('object-contain', value === 'contain'); video.classList.toggle('object-cover', value === 'cover'); }
+        if (action) settingsMenu.classList.add('hidden');
+    });
+    settingsMenu.addEventListener('input', (e) => {
+        const { action, value } = e.target.dataset;
+        if (action === 'set-sub-size') { playerState.subtitleFontSize = parseFloat(e.target.value); document.getElementById('subtitle-size-value').textContent = `${playerState.subtitleFontSize.toFixed(1)}rem`; }
+        if (action === 'set-sub-pos') { playerState.subtitleBottomMargin = parseInt(e.target.value, 10); document.getElementById('subtitle-pos-value').textContent = `${playerState.subtitleBottomMargin}%`; }
+        if(action) updateSubtitleStyles();
+    });
+    
+    subtitleMenuBtn.addEventListener('click', (e) => { e.stopPropagation(); settingsMenu.classList.add('hidden'); subtitleMenu.classList.toggle('hidden'); updateSubtitleMenu(); });
+    document.addEventListener('click', (e) => {
+        if (!settingsMenu.contains(e.target) && !settingsMenuBtn.contains(e.target)) settingsMenu.classList.add('hidden');
+        if (!subtitleMenu.contains(e.target) && !subtitleMenuBtn.contains(e.target)) subtitleMenu.classList.add('hidden');
+    });
 
     videoContainer.addEventListener('mousemove', showControls);
-    videoContainer.addEventListener('mouseleave', () => {
-        clearTimeout(controlsTimeout);
-        if (!video.paused) {
-          controlsContainer.classList.add('opacity-0');
-        }
-    });
+    videoContainer.addEventListener('mouseleave', () => { clearTimeout(controlsTimeout); if (!video.paused) controlsContainer.classList.add('opacity-0'); });
     updateSubtitleStyles();
   }
 
   // --- INITIALIZATION ---
-  function init() {
+  async function init() {
     const root = document.getElementById('root');
     root.innerHTML = createAppHTML();
 
     const params = new URLSearchParams(window.location.search);
     const embed = params.get('embed');
-    const sourcesParam = params.get('sources');
+    const configFilename = params.get('config');
 
-    if (embed === 'true' && sourcesParam) {
-      state.isEmbedMode = true;
-      try {
-        state.sources = JSON.parse(decodeURIComponent(sourcesParam));
-        state.watermarkUrl = params.get('watermark') ? decodeURIComponent(params.get('watermark')) : '';
-        state.watermarkPosition = params.get('wmpos') || 'top-right';
+    if (embed === 'true' && configFilename) {
+        state.isEmbedMode = true;
+        const appView = document.getElementById('app-view');
+        const embedView = document.getElementById('embed-view');
+        const playerHTML = document.getElementById('video-container');
+        const placeholderContent = document.getElementById('placeholder-content');
         
-        // Populate watermark settings for both desktop and mobile from URL
-        state.watermarkSettings.desktop = {
-            size: parseInt(params.get('wmsized'), 10) || 112,
-            x: parseInt(params.get('wmxd'), 10) || 12,
-            y: parseInt(params.get('wmyd'), 10) || 12,
-        };
-        state.watermarkSettings.mobile = {
-            size: parseInt(params.get('wmsizem'), 10) || 60,
-            x: parseInt(params.get('wmxm'), 10) || 8,
-            y: parseInt(params.get('wmym'), 10) || 8,
-        };
+        appView.classList.add('hidden');
+        embedView.classList.remove('hidden');
+        embedView.appendChild(playerHTML);
+        playerHTML.classList.remove('rounded-lg');
+        playerHTML.classList.add('w-screen', 'h-screen');
+        
+        placeholderContent.innerHTML = `<svg class="animate-spin h-12 w-12 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><p class="mt-2 text-sm font-medium">Loading Player...</p>`;
+      
+        try {
+            const config = await getGithubConfig();
+            const configUrl = `https://raw.githubusercontent.com/${config.USERNAME}/${config.REPO}/${config.BRANCH}/${FILE_PATH}${configFilename}`;
+            
+            const response = await fetch(configUrl);
+            if (!response.ok) throw new Error(`Config file not found or API error (${response.status})`);
+            
+            const playerConfigData = await response.json();
 
-      } catch (e) {
-        console.error("Failed to parse sources from URL", e);
-        state.sources = [];
-        state.watermarkUrl = '';
-        state.watermarkPosition = 'top-right';
-      }
-      
-      const appView = document.getElementById('app-view');
-      const embedView = document.getElementById('embed-view');
-      const playerHTML = document.getElementById('video-container');
-      
-      appView.classList.add('hidden');
-      embedView.classList.remove('hidden');
-      embedView.appendChild(playerHTML);
-      playerHTML.classList.remove('rounded-lg');
-      playerHTML.classList.add('w-screen', 'h-screen');
+            state.sources = playerConfigData.sources || [];
+            state.watermarkUrl = playerConfigData.watermarkUrl || '';
+            state.watermarkPosition = playerConfigData.watermarkPosition || 'top-right';
+            state.watermarkSettings = playerConfigData.watermarkSettings || { desktop: {}, mobile: {} };
+            
+            renderVideoPlayer();
+            setupPlayerListeners(true);
 
-      const placeholder = playerHTML.querySelector('#video-placeholder');
-      if (state.sources.length === 0) {
-        placeholder.innerHTML = `<div class="text-center text-gray-400">
-            ...
-            <p class="mt-2 text-sm font-medium">No video source found.</p>
-        </div>`;
-      }
-      
-      renderVideoPlayer();
-      setupPlayerListeners(true);
+        } catch (e) {
+            console.error("Failed to load player config from GitHub Repo:", e);
+            placeholderContent.innerHTML = `<p class="mt-2 text-sm font-medium text-red-400">Error: Could not load video configuration.</p><p class="text-xs text-gray-500">${e.message}</p>`;
+        }
       
     } else {
       state.isEmbedMode = false;
       document.getElementById('watermark-url-input').value = state.watermarkUrl;
       renderSourceList();
       renderVideoPlayer();
-      updateGeneratedUrl();
       setupGeneratorListeners();
       setupPlayerListeners(false);
     }
