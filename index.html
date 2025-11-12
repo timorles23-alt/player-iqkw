@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Video Player & Embed Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* For custom scrollbar styling */
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #1f2937; /* bg-gray-800 */
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #4b5563; /* bg-gray-600 */
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #6b7280; /* bg-gray-500 */
+      }
+
+      /* Hide default video controls for our custom player */
+      video::-webkit-media-controls {
+        display: none !important;
+      }
+      video::-webkit-media-controls-enclosure {
+        display: none !important;
+      }
+      video::-webkit-media-controls-panel {
+        display: none !important;
+      }
+      video::-webkit-media-controls-play-button {
+        display: none !important;
+      }
+      video::-webkit-media-controls-fullscreen-button {
+        display: none !important;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <div id="root">
+        <!-- App container will be dynamically generated here -->
+    </div>
+
+<script type="module">
+  // --- STATE MANAGEMENT ---
+  const state = {
+    sources: [],
+    watermarkUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMzAiIHZpZXdCb3g9IjAgMCAxMDAgMzAiPjx0ZXh0IHg9IjUwIiB5PSIyMiIgZm9udC1mYW1pbHk9IkFyaWFsLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjI0IiBmaWxsPSJyZ2JhKDc0LCAyMjIsIDEyOCwgMC43NSkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtd2VpZ2h0PSJib2xkIj5pUUtXPC90ZXh0Pjwvc3ZnPg==',
+    generatedUrl: '',
+    isEmbedMode: false,
+  };
+
+  const ResourceType = {
+    VIDEO: 'video',
+    SUBTITLE: 'subtitle',
+  };
+
+  // --- HTML TEMPLATES ---
+  const ICONS = {
+    play: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 sm:w-7 sm:h-7"><path d="M6 4l15 8-15 8V4z" /></svg>`,
+    pause: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6 sm:w-7 sm:h-7"><path fill-rule="evenodd" d="M6.75 5.25a.75.75 0 0 1 .75.75v12a.75.75 0 0 1-1.5 0V6a.75.75 0 0 1 .75-.75Zm9 0a.75.75 0 0 1 .75.75v12a.75.75 0 0 1-1.5 0V6a.75.75 0 0 1 .75-.75Z" clip-rule="evenodd" /></svg>`,
+    playBig: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-12 h-12"><path d="M6 4l15 8-15 8V4z" /></svg>`,
+    rewind: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 sm:w-6 sm:h-6"><path d="M12.5 3C7.8 3 3.5 6.3 2.2 10.5L1 9.8V15h5.2l-1.3-1.3C6 10.3 8.9 8 12.5 8c3.6 0 6.5 2.9 6.5 6.5S16.1 21 12.5 21c-1.7 0-3.3-.7-4.6-1.8l-1.4 1.4C8 22 10.1 23 12.5 23c4.7 0 8.5-3.8 8.5-8.5S17.2 3 12.5 3z"/></svg>`,
+    forward: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 sm:w-6 sm:h-6"><path d="M11.5 3C16.2 3 20.5 6.3 21.8 10.5l1.2-0.7V15h-5.2l1.3-1.3C18 10.3 15.1 8 11.5 8c-3.6 0-6.5 2.9-6.5 6.5S7.9 21 11.5 21c1.7 0 3.3-0.7 4.6-1.8l1.4 1.4C16 22 13.9 23 11.5 23c-4.7 0-8.5-3.8-8.5-8.5S6.8 3 11.5 3z"/></svg>`,
+    volumeUp: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 sm:w-5 sm:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" /></svg>`,
+    volumeOff: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 sm:w-5 sm:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 9.75 19.5 12m0 0 2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6.375a9 9 0 0 1 12.728 0M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" /></svg>`,
+    subtitle: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 sm:w-5 sm:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" /></svg>`,
+    settings: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 sm:w-5 sm:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.242 1.453l-1.028.925c-.245.222-.39.547-.39.882v.28c0 .336.145.66.39.882l1.028.925a1.125 1.125 0 0 1 .242 1.453l-1.296 2.247a1.125 1.125 0 0 1-1.37.49l-1.217-.456c-.355-.133-.75-.072-1.075.124a6.57 6.57 0 0 1-.22.127c-.332.183-.582.495-.645.87l-.213 1.281c-.09.543-.56.94-1.11.94h-2.593c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.063-.374-.313-.686-.645-.87a6.52 6.52 0 0 1-.22-.127c-.324-.196-.72-.257-1.075-.124l-1.217.456a1.125 1.125 0 0 1-1.37-.49l-1.296-2.247a1.125 1.125 0 0 1 .242-1.453l1.028-.925c.245.222-.39.547-.39.882v-.28c0-.336-.145-.66-.39-.882l-1.028-.925a1.125 1.125 0 0 1-.242-1.453l1.296-2.247a1.125 1.125 0 0 1 1.37-.49l1.217.456c.355.133.75.072 1.075.124.073-.044.146-.087.22-.127.332-.183.582-.495.645-.87l.213-1.281Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>`,
+    fullscreen: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 sm:w-5 sm:h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" /></svg>`,
+    upload: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" /></svg>`,
+    trash: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.134-2.036-2.134H8.716c-1.12 0-2.037.955-2.037 2.134v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" /></svg>`,
+    copy: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v3.042m-7.2-3.654A2.25 2.25 0 0 0 6.75 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v3.042m0 9.75a2.25 2.25 0 0 1-2.25 2.25h-3a2.25 2.25 0 0 1-2.25-2.25v-3c0-1.03.693-1.9 1.638-2.166M15.666 3.888c-1.03.693-1.9 1.638-2.166 2.166m0 0c.055.194.084.4.084.612v3.042m-7.2-3.654c-1.03.693-1.9 1.638-2.166 2.166m0 0a2.25 2.25 0 0 0 2.25 2.25h3a2.25 2.25 0 0 0 2.25-2.25v-3c0-1.03-.693-1.9-1.638-2.166m-1.834 5.751c.12.239.246.467.38.686m0 0a2.25 2.25 0 0 1 2.25 2.25h3a2.25 2.25 0 0 1 2.25-2.25v-3c0-1.03-.693-1.9-1.638-2.166" /></svg>`,
+    check: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 text-green-400"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>`,
+  };
+  
+  const createPlayerHTML = () => `
+    <div id="video-container" class="relative group w-full aspect-video bg-black rounded-lg overflow-hidden shadow-lg">
+      <input type="file" id="subtitle-upload-input" accept=".vtt,.srt" class="hidden" />
+      <img id="watermark-img" alt="Watermark" class="absolute top-2 right-0 md:top-4 w-15 md:w-52 md:-right-4 h-auto opacity-75 pointer-events-none z-10" />
+      <video id="video-element" class="w-full h-full object-contain" preload="metadata" crossOrigin="anonymous"></video>
+      
+      <div id="video-placeholder" class="w-full h-full bg-black flex items-center justify-center hidden">
+         <div class="text-center text-gray-400">
+          <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          <p class="mt-2 text-sm font-medium">Add a video source to see a preview</p>
+        </div>
+      </div>
+      
+      <div id="play-overlay" class="absolute inset-0 flex items-center justify-center transition-opacity duration-300 opacity-0">
+        <button id="play-overlay-button" class="bg-black/50 p-4 rounded-full text-white hover:bg-black/75 transition-colors">
+            ${ICONS.playBig}
+        </button>
+      </div>
+
+      <div id="controls-container" class="absolute bottom-0 left-0 right-0 p-2 sm:p-3 bg-gradient-to-t from-black/70 via-black/50 to-transparent transition-opacity duration-300 opacity-0">
+        <div id="progress-bar-container" class="w-full h-1 bg-white/20 cursor-pointer mb-1 sm:mb-2 group/progress">
+          <div id="progress-bar" class="h-full bg-green-500 relative" style="width: 0%;">
+            <div class="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-green-500 rounded-full scale-0 group-hover/progress:scale-100 transition-transform"></div>
+          </div>
+        </div>
+        <div class="flex items-center justify-between text-white">
+          <div class="flex items-center gap-1 sm:gap-3">
+            <button id="rewind-button" aria-label="Rewind 10 seconds">${ICONS.rewind}</button>
+            <button id="play-pause-button" aria-label="Play">${ICONS.play}</button>
+            <button id="forward-button" aria-label="Forward 10 seconds">${ICONS.forward}</button>
+            <div id="volume-container" class="relative flex items-center">
+                <button id="mute-button">${ICONS.volumeUp}</button>
+                 <div id="volume-slider-container" class="transition-all duration-300 overflow-hidden w-0">
+                    <input id="volume-slider" type="range" min="0" max="1" step="0.05" value="1" class="w-full h-1 accent-green-500" />
+                </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-1 sm:gap-3">
+            <span id="time-display" class="font-mono text-xs sm:text-sm">00:00 / 00:00</span>
+            <div class="relative">
+                <button id="subtitle-menu-button" class="disabled:opacity-50 disabled:cursor-not-allowed">${ICONS.subtitle}</button>
+                <div id="subtitle-menu" class="absolute bottom-full right-0 mb-2 bg-black/80 rounded-md py-1 text-white text-sm w-36 sm:w-40 z-10 overflow-y-auto max-h-60 hidden"></div>
+            </div>
+            <div class="relative">
+                <button id="settings-menu-button">${ICONS.settings}</button>
+                <div id="settings-menu" class="absolute bottom-full right-0 mb-2 bg-black/80 rounded-md py-1 text-white text-sm w-28 sm:w-32 z-10 overflow-y-auto max-h-60 hidden"></div>
+            </div>
+            <button id="fullscreen-button">${ICONS.fullscreen}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const createAppHTML = () => `
+    <div id="app-view" class="min-h-screen bg-gray-900 text-white p-4 sm:p-6 md:p-8">
+      <main class="max-w-4xl mx-auto">
+        <header class="text-center mb-8">
+          <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-teal-400">
+            Video Player & Embed Generator
+          </h1>
+          <p class="mt-2 text-lg text-gray-400">
+            Add video sources, resolutions, and subtitles to generate an embeddable player.
+          </p>
+        </header>
+        <div class="bg-gray-800 rounded-xl shadow-2xl overflow-hidden">
+          ${createPlayerHTML()}
+          <div class="p-6">
+            <div class="p-4 rounded-lg text-gray-200">
+              <div class="flex items-center gap-3">
+                <input type="url" id="main-url-input" placeholder="Enter video URL (MP4, M3U8, etc.)" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded-md py-2 px-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition placeholder-gray-400" />
+                <button id="load-video-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition-colors whitespace-nowrap">Load Video</button>
+              </div>
+              <details class="mt-4 group">
+                <summary class="cursor-pointer font-semibold text-teal-400 list-none flex items-center gap-2">
+                  <span class="transform transition-transform duration-200 group-open:rotate-90">&#9654;</span>
+                  <span>Add More Resolutions & Subtitles</span>
+                </summary>
+                <div class="mt-4 border-t border-gray-700 pt-4 space-y-6">
+                  <div>
+                    <label for="watermark-url-input" class="block text-sm font-medium text-gray-300 mb-1">Watermark Link</label>
+                    <input id="watermark-url-input" type="url" placeholder="https://example.com/logo.png" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded-md py-2 px-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition placeholder-gray-400" />
+                  </div>
+                  <form id="add-resource-form" class="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-600 pt-6">
+                    <div class="md:col-span-2">
+                      <select id="resource-type-select" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded-md py-2 px-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition">
+                        <option value="subtitle">Subtitle</option>
+                        <option value="resolution">Video Resolution</option>
+                      </select>
+                    </div>
+                    <div class="flex flex-col">
+                      <label class="text-sm font-medium text-gray-300 mb-1">Label (e.g., 480p or English)</label>
+                      <input type="text" id="addon-label-input" placeholder="English" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded-md py-2 px-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition placeholder-gray-400" />
+                    </div>
+                    <div class="flex flex-col">
+                      <label class="text-sm font-medium text-gray-300 mb-1">Lang Code (e.g., en)</label>
+                      <input type="text" id="addon-lang-input" placeholder="en" required class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded-md py-2 px-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition placeholder-gray-400" />
+                    </div>
+                    <div class="md:col-span-2 flex flex-col">
+                      <label class="text-sm font-medium text-gray-300 mb-1">URL</label>
+                      <input type="url" id="addon-url-input" required placeholder="https://example.com/resource.vtt" class="w-full bg-gray-700 text-gray-200 border border-gray-600 rounded-md py-2 px-3 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition placeholder-gray-400" />
+                    </div>
+                    <div class="md:col-span-2">
+                      <button type="submit" class="w-full bg-teal-700 hover:bg-teal-800 text-white font-bold py-2 px-4 rounded-md transition-colors">Add Resource by URL</button>
+                    </div>
+                  </form>
+                </div>
+              </details>
+            </div>
+            <div id="source-list-container" class="mt-6"></div>
+            <div id="embed-url-container" class="mt-6 hidden">
+              <label class="block text-sm font-medium text-gray-300 mb-2">Embed URL</label>
+              <div class="relative w-full">
+                <input type="text" readonly id="generated-url-input" class="w-full bg-gray-900 text-gray-300 border border-gray-600 rounded-md py-2 pl-3 pr-12 font-mono text-sm" />
+                <button id="copy-button" class="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-white transition-colors" aria-label="Copy to clipboard">
+                  ${ICONS.copy}
+                </button>
+              </div>
+              <p id="copy-feedback" class="text-sm text-green-400 mt-2 text-right hidden">Link copied to clipboard!</p>
+            </div>
+          </div>
+        </div>
+        <footer class="text-center mt-8 text-sm text-gray-500">
+            <p>Built with vanilla JS & Tailwind CSS.</p>
+        </footer>
+      </main>
+    </div>
+    <div id="embed-view" class="hidden"></div>
+  `;
+
+  // --- RENDER FUNCTIONS ---
+  function renderSourceList() {
+    const container = document.getElementById('source-list-container');
+    if (!container) return;
+
+    const videos = state.sources.map((r, i) => ({...r, originalIndex: i})).filter(r => r.type === ResourceType.VIDEO);
+    const subtitles = state.sources.map((r, i) => ({...r, originalIndex: i})).filter(r => r.type === ResourceType.SUBTITLE);
+
+    let html = '';
+    if (videos.length > 0) {
+      html += `<h3 class="text-lg font-semibold text-gray-200 mb-3">Video Resolutions</h3>
+               <ul class="space-y-2 max-h-48 overflow-y-auto pr-2">`;
+      videos.forEach(source => {
+        html += `<li class="flex items-center justify-between bg-gray-700 p-3 rounded-md">
+                   <div class="flex-1 truncate mr-4">
+                     <span class="font-mono text-sm text-green-400 bg-gray-800 px-2 py-1 rounded">${source.label}</span>
+                     <p class="text-sm text-gray-300 truncate mt-1" title="${source.src}">${source.src}</p>
+                   </div>
+                   <button class="remove-resource-btn p-2 text-gray-400 hover:text-red-500 hover:bg-gray-600 rounded-full transition-colors" data-index="${source.originalIndex}" aria-label="Remove source">${ICONS.trash}</button>
+                 </li>`;
+      });
+      html += '</ul>';
+    }
+    if (subtitles.length > 0) {
+      html += `<h3 class="text-lg font-semibold text-gray-200 mt-4 mb-3">Subtitles</h3>
+               <ul class="space-y-2 max-h-48 overflow-y-auto pr-2">`;
+      subtitles.forEach(track => {
+        html += `<li class="flex items-center justify-between bg-gray-700 p-3 rounded-md">
+                   <div class="flex-1 truncate mr-4">
+                     <span class="font-mono text-sm text-yellow-400 bg-gray-800 px-2 py-1 rounded">${track.label} (${track.srclang})</span>
+                     <p class="text-sm text-gray-300 truncate mt-1" title="${track.src}">${track.src}</p>
+                   </div>
+                   <button class="remove-resource-btn p-2 text-gray-400 hover:text-red-500 hover:bg-gray-600 rounded-full transition-colors" data-index="${track.originalIndex}" aria-label="Remove subtitle">${ICONS.trash}</button>
+                 </li>`;
+      });
+      html += '</ul>';
+    }
+
+    container.innerHTML = html;
+    document.querySelectorAll('.remove-resource-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const index = parseInt(e.currentTarget.dataset.index);
+            handleRemoveResource(index);
+        });
+    });
+  }
+
+  function renderVideoPlayer() {
+    const videoEl = document.getElementById('video-element');
+    const watermarkImg = document.getElementById('watermark-img');
+    const videoPlaceholder = document.getElementById('video-placeholder');
+    if (!videoEl || !watermarkImg) return;
+    
+    const videos = state.sources.filter(s => s.type === ResourceType.VIDEO);
+    const subtitles = state.sources.filter(s => s.type === ResourceType.SUBTITLE);
+    
+    // Remember current time to restore it after source change
+    const currentTime = videoEl.currentTime;
+
+    videoEl.innerHTML = '';
+    
+    videos.forEach(source => {
+      const sourceEl = document.createElement('source');
+      sourceEl.src = source.src;
+      sourceEl.type = source.src.endsWith('.m3u8') ? 'application/x-mpegURL' : 'video/mp4';
+      videoEl.appendChild(sourceEl);
+    });
+
+    subtitles.forEach((track, index) => {
+      const trackEl = document.createElement('track');
+      trackEl.kind = 'subtitles';
+      trackEl.src = track.src;
+      trackEl.srclang = track.srclang;
+      trackEl.label = track.label;
+      trackEl.default = index === 0;
+      videoEl.appendChild(trackEl);
+    });
+
+    videoEl.load();
+    videoEl.currentTime = currentTime;
+
+    if (state.watermarkUrl) {
+        watermarkImg.src = state.watermarkUrl;
+        watermarkImg.classList.remove('hidden');
+    } else {
+        watermarkImg.classList.add('hidden');
+    }
+    
+    if (videos.length > 0) {
+        videoPlaceholder.classList.add('hidden');
+        videoEl.classList.remove('hidden');
+    } else {
+        videoPlaceholder.classList.remove('hidden');
+        videoEl.classList.add('hidden');
+    }
+  }
+
+  function updateGeneratedUrl() {
+    const urlContainer = document.getElementById('embed-url-container');
+    const urlInput = document.getElementById('generated-url-input');
+    const hasVideoSource = state.sources.some(s => s.type === 'video');
+
+    if (hasVideoSource) {
+      const sourcesJson = JSON.stringify(state.sources);
+      const encodedSources = encodeURIComponent(sourcesJson);
+      
+      const { origin, pathname } = window.location;
+      const basePlayerUrl = `${origin}${pathname}`;
+      
+      let url = `${basePlayerUrl}?embed=true&sources=${encodedSources}`;
+      if (state.watermarkUrl.trim()) {
+        url += `&watermark=${encodeURIComponent(state.watermarkUrl)}`;
+      }
+      state.generatedUrl = url;
+      urlInput.value = url;
+      urlContainer.classList.remove('hidden');
+    } else {
+      state.generatedUrl = '';
+      urlInput.value = '';
+      urlContainer.classList.add('hidden');
+    }
+  }
+  
+  // --- EVENT HANDLERS & LOGIC ---
+  const handleAddResource = (resource) => {
+    state.sources = [...state.sources, resource];
+    renderSourceList();
+    renderVideoPlayer();
+    updateGeneratedUrl();
+  };
+
+  const handleRemoveResource = (index) => {
+    state.sources = state.sources.filter((_, i) => i !== index);
+    renderSourceList();
+    renderVideoPlayer();
+    updateGeneratedUrl();
+  };
+  
+  const handleWatermarkChange = (url) => {
+      state.watermarkUrl = url;
+      renderVideoPlayer();
+      updateGeneratedUrl();
+  }
+  
+  function setupGeneratorListeners() {
+    document.getElementById('load-video-button').addEventListener('click', () => {
+        const mainUrlInput = document.getElementById('main-url-input');
+        if (mainUrlInput.value.trim() === '') {
+            alert('Video URL cannot be empty.');
+            return;
+        }
+        handleAddResource({ type: ResourceType.VIDEO, src: mainUrlInput.value, label: 'Auto' });
+        mainUrlInput.value = '';
+    });
+    
+    const resourceTypeSelect = document.getElementById('resource-type-select');
+    const addonLabelInput = document.getElementById('addon-label-input');
+    const addonLangInput = document.getElementById('addon-lang-input');
+    resourceTypeSelect.addEventListener('change', (e) => {
+        const isSubtitle = e.target.value === 'subtitle';
+        addonLabelInput.placeholder = isSubtitle ? "English" : "720p";
+        addonLangInput.disabled = !isSubtitle;
+        addonLangInput.required = isSubtitle;
+    });
+
+    document.getElementById('add-resource-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const addonUrl = document.getElementById('addon-url-input').value;
+        const addonLabel = addonLabelInput.value;
+        const addonLang = addonLangInput.value;
+        const resourceType = resourceTypeSelect.value;
+        
+        let newResource;
+        if (resourceType === 'resolution') {
+          newResource = { type: ResourceType.VIDEO, src: addonUrl, label: addonLabel.trim() === '' ? 'Default' : addonLabel };
+        } else {
+          newResource = { type: ResourceType.SUBTITLE, src: addonUrl, label: addonLabel.trim() === '' ? 'Subtitle' : addonLabel, srclang: addonLang };
+        }
+        handleAddResource(newResource);
+        e.target.reset();
+        resourceTypeSelect.dispatchEvent(new Event('change')); // Reset placeholders
+    });
+    
+    document.getElementById('watermark-url-input').addEventListener('input', (e) => {
+        handleWatermarkChange(e.target.value);
+    });
+
+    const copyButton = document.getElementById('copy-button');
+    copyButton.addEventListener('click', () => {
+        if (!state.generatedUrl) return;
+        navigator.clipboard.writeText(state.generatedUrl).then(() => {
+            const feedback = document.getElementById('copy-feedback');
+            copyButton.innerHTML = ICONS.check;
+            feedback.classList.remove('hidden');
+            setTimeout(() => {
+                copyButton.innerHTML = ICONS.copy;
+                feedback.classList.add('hidden');
+            }, 2500);
+        });
+    });
+  }
+
+  function setupPlayerListeners(isEmbed) {
+    const videoContainer = document.getElementById('video-container');
+    const video = document.getElementById('video-element');
+    const playPauseBtn = document.getElementById('play-pause-button');
+    const playOverlay = document.getElementById('play-overlay');
+    const playOverlayBtn = document.getElementById('play-overlay-button');
+    const controlsContainer = document.getElementById('controls-container');
+    const progressContainer = document.getElementById('progress-bar-container');
+    const progressBar = document.getElementById('progress-bar');
+    const timeDisplay = document.getElementById('time-display');
+    const rewindBtn = document.getElementById('rewind-button');
+    const forwardBtn = document.getElementById('forward-button');
+    const muteBtn = document.getElementById('mute-button');
+    const volumeContainer = document.getElementById('volume-container');
+    const volumeSliderContainer = document.getElementById('volume-slider-container');
+    const volumeSlider = document.getElementById('volume-slider');
+    const fullscreenBtn = document.getElementById('fullscreen-button');
+    const subtitleMenuBtn = document.getElementById('subtitle-menu-button');
+    const subtitleMenu = document.getElementById('subtitle-menu');
+    const settingsMenuBtn = document.getElementById('settings-menu-button');
+    const settingsMenu = document.getElementById('settings-menu');
+    const subtitleUploadInput = document.getElementById('subtitle-upload-input');
+
+    let controlsTimeout;
+    let localSubtitle = null;
+    let activeTrack = null;
+
+    const formatTime = (timeInSeconds) => {
+      if (isNaN(timeInSeconds)) return '00:00';
+      const minutes = Math.floor(timeInSeconds / 60);
+      const seconds = Math.floor(timeInSeconds % 60);
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    };
+
+    const showControls = () => {
+        clearTimeout(controlsTimeout);
+        controlsContainer.classList.remove('opacity-0');
+        controlsTimeout = setTimeout(() => {
+            if(!video.paused) {
+                controlsContainer.classList.add('opacity-0');
+                volumeSliderContainer.classList.replace('w-16', 'w-0');
+                volumeSliderContainer.classList.replace('sm:w-20', 'w-0');
+                volumeSliderContainer.classList.replace('ml-2', 'w-0');
+                settingsMenu.classList.add('hidden');
+                subtitleMenu.classList.add('hidden');
+            }
+        }, 3000);
+    };
+
+    const togglePlayPause = () => video.paused ? video.play() : video.pause();
+    
+    video.addEventListener('play', () => {
+        playPauseBtn.innerHTML = ICONS.pause;
+        playPauseBtn.ariaLabel = 'Pause';
+        playOverlay.classList.add('opacity-0');
+        showControls();
+    });
+
+    video.addEventListener('pause', () => {
+        playPauseBtn.innerHTML = ICONS.play;
+        playPauseBtn.ariaLabel = 'Play';
+        playOverlay.classList.remove('opacity-0');
+        clearTimeout(controlsTimeout);
+        controlsContainer.classList.remove('opacity-0');
+    });
+
+    video.addEventListener('loadedmetadata', () => {
+        timeDisplay.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+        if (isEmbed) video.play().catch(()=>{});
+        const defaultTrack = video.textTracks.length > 0 ? video.textTracks[0] : null;
+        if(defaultTrack) {
+            activeTrack = defaultTrack.language;
+        }
+        updateSubtitleMenu();
+    });
+
+    video.addEventListener('timeupdate', () => {
+        progressBar.style.width = `${(video.currentTime / video.duration) * 100}%`;
+        timeDisplay.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+    });
+    
+    video.addEventListener('volumechange', () => {
+        volumeSlider.value = video.muted ? 0 : video.volume;
+        muteBtn.innerHTML = (video.muted || video.volume === 0) ? ICONS.volumeOff : ICONS.volumeUp;
+    });
+    
+    const seek = (time) => { video.currentTime = Math.max(0, Math.min(video.duration, time)); };
+    rewindBtn.addEventListener('click', () => seek(video.currentTime - 10));
+    forwardBtn.addEventListener('click', () => seek(video.currentTime + 10));
+    playPauseBtn.addEventListener('click', togglePlayPause);
+    playOverlayBtn.addEventListener('click', togglePlayPause);
+    video.addEventListener('click', togglePlayPause);
+
+    progressContainer.addEventListener('click', (e) => {
+        const rect = progressContainer.getBoundingClientRect();
+        const seekPosition = (e.clientX - rect.left) / rect.width;
+        video.currentTime = seekPosition * video.duration;
+    });
+
+    volumeContainer.addEventListener('mouseenter', () => {
+        volumeSliderContainer.classList.remove('w-0');
+        volumeSliderContainer.classList.add('w-16', 'sm:w-20', 'ml-2');
+    });
+    volumeContainer.addEventListener('mouseleave', () => {
+        volumeSliderContainer.classList.remove('w-16', 'sm:w-20', 'ml-2');
+        volumeSliderContainer.classList.add('w-0');
+    });
+    muteBtn.addEventListener('click', () => { video.muted = !video.muted; });
+    volumeSlider.addEventListener('input', (e) => {
+        video.volume = e.target.value;
+        video.muted = e.target.value == 0;
+    });
+
+    fullscreenBtn.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+            videoContainer.requestFullscreen().catch(err => alert(`Fullscreen error: ${err.message}`));
+        } else {
+            document.exitFullscreen();
+        }
+    });
+
+    const updateSubtitleMenu = () => {
+        subtitleMenu.innerHTML = ''; // Clear existing
+        // Upload button
+        const uploadBtn = document.createElement('button');
+        uploadBtn.className = 'flex items-center gap-2 w-full text-left px-3 py-1.5 hover:bg-white/20';
+        uploadBtn.innerHTML = `${ICONS.upload} <span>Upload Subtitle</span>`;
+        uploadBtn.onclick = () => subtitleUploadInput.click();
+        subtitleMenu.appendChild(uploadBtn);
+        subtitleMenu.appendChild(document.createElement('div')).className = 'border-t border-white/20 my-1';
+
+        // Off button
+        const offBtn = document.createElement('button');
+        offBtn.className = `block w-full text-left px-3 py-1 hover:bg-white/20 ${!activeTrack ? 'bg-green-500' : ''}`;
+        offBtn.textContent = 'Off';
+        offBtn.onclick = () => setActiveSubtitle(null);
+        subtitleMenu.appendChild(offBtn);
+        
+        // Render tracks
+        for (let i = 0; i < video.textTracks.length; i++) {
+            const track = video.textTracks[i];
+            const btn = document.createElement('button');
+            btn.className = `block w-full text-left px-3 py-1 hover:bg-white/20 truncate ${activeTrack === track.language ? 'bg-green-500' : ''}`;
+            btn.title = track.label;
+            btn.textContent = track.label;
+            btn.onclick = () => setActiveSubtitle(track.language);
+            subtitleMenu.appendChild(btn);
+        }
+        subtitleMenuBtn.classList.toggle('text-green-400', !!activeTrack);
+    };
+
+    const setActiveSubtitle = (lang) => {
+        activeTrack = lang;
+        for (let i = 0; i < video.textTracks.length; i++) {
+            video.textTracks[i].mode = video.textTracks[i].language === lang ? 'showing' : 'hidden';
+        }
+        updateSubtitleMenu();
+        subtitleMenu.classList.add('hidden');
+    };
+    
+    subtitleUploadInput.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (localSubtitle) URL.revokeObjectURL(localSubtitle.src);
+            
+            const fileUrl = URL.createObjectURL(file);
+            localSubtitle = {
+                src: fileUrl,
+                label: file.name.replace(/\.[^/.]+$/, ''),
+                srclang: `local-${file.name}`,
+            };
+
+            const trackEl = document.createElement('track');
+            trackEl.kind = 'subtitles';
+            trackEl.src = localSubtitle.src;
+            trackEl.srclang = localSubtitle.srclang;
+            trackEl.label = localSubtitle.label;
+            trackEl.default = true;
+            video.appendChild(trackEl);
+            
+            // Wait for track to be processed
+            setTimeout(() => {
+                setActiveSubtitle(localSubtitle.srclang);
+            }, 100);
+        }
+        e.target.value = '';
+    });
+    
+    const updateSettingsMenu = () => {
+        settingsMenu.innerHTML = '';
+        const rates = [0.5, 0.75, 1, 1.25, 1.5, 2, 5];
+        const fits = [{value: 'contain', label: 'Fit (Default)'}, {value: 'cover', label: 'Fill (Crop)'}];
+        
+        settingsMenu.innerHTML += '<p class="px-3 py-1 font-semibold text-gray-300">Speed</p>';
+        rates.forEach(rate => {
+            const btn = document.createElement('button');
+            btn.className = `block w-full text-left px-3 py-1 hover:bg-white/20 ${video.playbackRate === rate ? 'bg-green-500' : ''}`;
+            btn.textContent = rate === 1 ? 'Normal' : `${rate}x`;
+            btn.onclick = () => {
+                video.playbackRate = rate;
+                settingsMenu.classList.add('hidden');
+                updateSettingsMenu();
+            };
+            settingsMenu.appendChild(btn);
+        });
+        
+        settingsMenu.innerHTML += '<div class="border-t border-white/20 my-1"></div><p class="px-3 py-1 font-semibold text-gray-300">Fit</p>';
+        fits.forEach(fit => {
+            const btn = document.createElement('button');
+            const isContain = video.classList.contains('object-contain');
+            btn.className = `block w-full text-left px-3 py-1 hover:bg-white/20 ${((fit.value === 'contain' && isContain) || (fit.value === 'cover' && !isContain)) ? 'bg-green-500' : ''}`;
+            btn.textContent = fit.label;
+            btn.onclick = () => {
+                video.classList.toggle('object-contain', fit.value === 'contain');
+                video.classList.toggle('object-cover', fit.value === 'cover');
+                settingsMenu.classList.add('hidden');
+                updateSettingsMenu();
+            };
+            settingsMenu.appendChild(btn);
+        });
+    };
+
+    settingsMenuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        subtitleMenu.classList.add('hidden');
+        settingsMenu.classList.toggle('hidden');
+        updateSettingsMenu();
+    });
+    
+    subtitleMenuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        settingsMenu.classList.add('hidden');
+        subtitleMenu.classList.toggle('hidden');
+        updateSubtitleMenu();
+    });
+    
+    document.addEventListener('click', (e) => {
+        if (!settingsMenu.contains(e.target) && !settingsMenuBtn.contains(e.target)) {
+            settingsMenu.classList.add('hidden');
+        }
+        if (!subtitleMenu.contains(e.target) && !subtitleMenuBtn.contains(e.target)) {
+            subtitleMenu.classList.add('hidden');
+        }
+    });
+
+    videoContainer.addEventListener('mousemove', showControls);
+    videoContainer.addEventListener('mouseleave', () => {
+        clearTimeout(controlsTimeout);
+        if (!video.paused) {
+          controlsContainer.classList.add('opacity-0');
+        }
+    });
+  }
+
+  // --- INITIALIZATION ---
+  function init() {
+    const root = document.getElementById('root');
+    root.innerHTML = createAppHTML();
+
+    const params = new URLSearchParams(window.location.search);
+    const embed = params.get('embed');
+    const sourcesParam = params.get('sources');
+    const watermarkParam = params.get('watermark');
+
+    if (embed === 'true' && sourcesParam) {
+      state.isEmbedMode = true;
+      try {
+        state.sources = JSON.parse(decodeURIComponent(sourcesParam));
+        if (watermarkParam) {
+          state.watermarkUrl = decodeURIComponent(watermarkParam);
+        }
+      } catch (e) {
+        console.error("Failed to parse sources from URL", e);
+        state.sources = [];
+      }
+      
+      const appView = document.getElementById('app-view');
+      const embedView = document.getElementById('embed-view');
+      const playerHTML = document.getElementById('video-container');
+      
+      appView.classList.add('hidden');
+      embedView.classList.remove('hidden');
+      embedView.appendChild(playerHTML);
+      playerHTML.classList.remove('rounded-lg');
+      playerHTML.classList.add('w-screen', 'h-screen');
+
+      const placeholder = playerHTML.querySelector('#video-placeholder');
+      if (state.sources.length === 0) {
+        placeholder.innerHTML = `<div class="text-center text-gray-400">
+            ...
+            <p class="mt-2 text-sm font-medium">No video source found.</p>
+        </div>`;
+      }
+      
+      renderVideoPlayer();
+      setupPlayerListeners(true);
+      
+    } else {
+      state.isEmbedMode = false;
+      document.getElementById('watermark-url-input').value = state.watermarkUrl;
+      renderSourceList();
+      renderVideoPlayer();
+      updateGeneratedUrl();
+      setupGeneratorListeners();
+      setupPlayerListeners(false);
+    }
+  }
+
+  // Run the app
+  document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
