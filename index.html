@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Video Player & Embed Generator</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
     <style>
       /* For custom scrollbar styling */
       ::-webkit-scrollbar {
@@ -54,9 +55,11 @@
     sources: [],
     watermarkUrl: 'https://timorles23-alt.github.io/player-iqkw/20251112013537.png',
     watermarkPosition: 'top-right',
-    watermarkSize: 112, // default width in px
-    watermarkXOffset: 12, // default horizontal offset in px
-    watermarkYOffset: 12, // default vertical offset in px
+    watermarkSettings: {
+        desktop: { size: 112, x: 12, y: 12 },
+        mobile: { size: 60, x: 8, y: 8 },
+    },
+    activeWatermarkView: 'desktop', // 'desktop' or 'mobile'
     generatedUrl: '',
     isEmbedMode: false,
   };
@@ -184,6 +187,10 @@
                       </div>
                       <div class="mt-4 pt-4 border-t border-gray-600">
                         <label class="block text-sm font-medium text-gray-300 mb-2">Watermark Adjustments</label>
+                        <div class="flex border-b border-gray-700 mb-3">
+                            <button id="wm-view-desktop" class="px-4 py-2 text-sm font-medium transition-colors">Desktop</button>
+                            <button id="wm-view-mobile" class="px-4 py-2 text-sm font-medium transition-colors">Mobile</button>
+                        </div>
                         <div class="space-y-3">
                             <div>
                                 <label for="watermark-size-slider" class="flex justify-between text-xs text-gray-400"><span>Size</span><span id="watermark-size-value">112px</span></label>
@@ -274,7 +281,7 @@
         html += `<li class="flex items-center justify-between bg-gray-700 p-3 rounded-md">
                    <div class="flex-1 truncate mr-4">
                      <span class="font-mono text-sm text-green-400 bg-gray-800 px-2 py-1 rounded">${source.label}</span>
-                     <p class="text-sm text-gray-300 truncate mt-1" title="${source.src}">${source.src.startsWith('data:') ? 'Embedded Subtitle Data' : source.src}</p>
+                     <p class="text-sm text-gray-300 truncate mt-1" title="${source.src}">${source.src}</p>
                    </div>
                    <button class="remove-resource-btn p-2 text-gray-400 hover:text-red-500 hover:bg-gray-600 rounded-full transition-colors" data-index="${source.originalIndex}" aria-label="Remove source">${ICONS.trash}</button>
                  </li>`;
@@ -285,10 +292,15 @@
       html += `<h3 class="text-lg font-semibold text-gray-200 mt-4 mb-3">Subtitles</h3>
                <ul class="space-y-2 max-h-48 overflow-y-auto pr-2">`;
       subtitles.forEach(track => {
+        const getTrackSrcDisplay = (src) => {
+            if (src.startsWith('vtt-compressed:')) return 'Embedded (compressed) subtitle';
+            if (src.startsWith('data:')) return 'Embedded Subtitle Data';
+            return src;
+        };
         html += `<li class="flex items-center justify-between bg-gray-700 p-3 rounded-md">
                    <div class="flex-1 truncate mr-4">
                      <span class="font-mono text-sm text-yellow-400 bg-gray-800 px-2 py-1 rounded">${track.label} (${track.srclang})</span>
-                     <p class="text-sm text-gray-300 truncate mt-1" title="${track.src}">${track.src.startsWith('data:') ? 'Embedded Subtitle Data' : track.src}</p>
+                     <p class="text-sm text-gray-300 truncate mt-1" title="${track.src}">${getTrackSrcDisplay(track.src)}</p>
                    </div>
                    <button class="remove-resource-btn p-2 text-gray-400 hover:text-red-500 hover:bg-gray-600 rounded-full transition-colors" data-index="${track.originalIndex}" aria-label="Remove subtitle">${ICONS.trash}</button>
                  </li>`;
@@ -329,7 +341,27 @@
     subtitles.forEach((track, index) => {
       const trackEl = document.createElement('track');
       trackEl.kind = 'subtitles';
-      trackEl.src = track.src;
+      
+      if (track.src.startsWith('vtt-compressed:')) {
+        try {
+            const base64Data = track.src.substring('vtt-compressed:'.length);
+            const binaryString = atob(base64Data);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const decompressedContent = pako.inflate(bytes, { to: 'string' });
+            const blob = new Blob([decompressedContent], { type: 'text/vtt' });
+            trackEl.src = URL.createObjectURL(blob);
+        } catch (e) {
+            console.error('Error decompressing subtitle:', e);
+            return; // Skip this invalid track
+        }
+      } else {
+        trackEl.src = track.src;
+      }
+
       trackEl.srclang = track.srclang;
       trackEl.label = track.label;
       trackEl.default = index === 0;
@@ -343,14 +375,22 @@
         watermarkImg.src = state.watermarkUrl;
         watermarkImg.classList.remove('hidden');
 
-        watermarkImg.style.width = `${state.watermarkSize}px`;
+        let settings;
+        if (state.isEmbedMode) {
+            const isMobile = window.innerWidth < 768;
+            settings = isMobile ? state.watermarkSettings.mobile : state.watermarkSettings.desktop;
+        } else {
+            settings = state.watermarkSettings[state.activeWatermarkView]; 
+        }
+
+        watermarkImg.style.width = `${settings.size}px`;
         watermarkImg.style.height = 'auto';
 
         const [posY, posX] = state.watermarkPosition.split('-');
         
         // Use signed offsets for transform calculation
-        const xOffset = (posX === 'right' ? -1 : 1) * state.watermarkXOffset;
-        const yOffset = (posY === 'bottom' ? -1 : 1) * state.watermarkYOffset;
+        const xOffset = (posX === 'right' ? -1 : 1) * settings.x;
+        const yOffset = (posY === 'bottom' ? -1 : 1) * settings.y;
         
         // Reset all positioning properties
         watermarkImg.style.top = 'auto';
@@ -369,7 +409,6 @@
         }
         transformY = `calc(${transformY} + ${yOffset}px)`;
         
-
         if (posX === 'left') watermarkImg.style.left = '0px';
         if (posX === 'right') watermarkImg.style.right = '0px';
         if (posX === 'center') {
@@ -406,11 +445,17 @@
       
       let url = `${basePlayerUrl}?embed=true&sources=${encodedSources}`;
       if (state.watermarkUrl.trim()) {
+        const { desktop, mobile } = state.watermarkSettings;
         url += `&watermark=${encodeURIComponent(state.watermarkUrl)}`;
         url += `&wmpos=${state.watermarkPosition}`;
-        url += `&wmsize=${state.watermarkSize}`;
-        url += `&wmx=${state.watermarkXOffset}`;
-        url += `&wmy=${state.watermarkYOffset}`;
+        // Desktop params
+        url += `&wmsized=${desktop.size}`;
+        url += `&wmxd=${desktop.x}`;
+        url += `&wmyd=${desktop.y}`;
+        // Mobile params
+        url += `&wmsizem=${mobile.size}`;
+        url += `&wmxm=${mobile.x}`;
+        url += `&wmym=${mobile.y}`;
       }
       state.generatedUrl = url;
       urlInput.value = url;
@@ -461,6 +506,38 @@
     renderVideoPlayer();
     updateGeneratedUrl();
   };
+
+  function renderWatermarkControls() {
+    const desktopBtn = document.getElementById('wm-view-desktop');
+    const mobileBtn = document.getElementById('wm-view-mobile');
+    const wmSizeSlider = document.getElementById('watermark-size-slider');
+    const wmSizeValue = document.getElementById('watermark-size-value');
+    const wmXInput = document.getElementById('watermark-x-offset-input');
+    const wmYInput = document.getElementById('watermark-y-offset-input');
+
+    // Update tab styles
+    if (state.activeWatermarkView === 'desktop') {
+        desktopBtn.classList.add('border-b-2', 'border-green-500', 'text-white');
+        desktopBtn.classList.remove('text-gray-400');
+        mobileBtn.classList.remove('border-b-2', 'border-green-500', 'text-white');
+        mobileBtn.classList.add('text-gray-400');
+    } else {
+        mobileBtn.classList.add('border-b-2', 'border-green-500', 'text-white');
+        mobileBtn.classList.remove('text-gray-400');
+        desktopBtn.classList.remove('border-b-2', 'border-green-500', 'text-white');
+        desktopBtn.classList.add('text-gray-400');
+    }
+    
+    // Update input values
+    const settings = state.watermarkSettings[state.activeWatermarkView];
+    wmSizeSlider.value = settings.size;
+    wmSizeValue.textContent = `${settings.size}px`;
+    wmXInput.value = settings.x;
+    wmYInput.value = settings.y;
+
+    // Refresh the player preview in the generator
+    renderVideoPlayer();
+  }
   
   function setupGeneratorListeners() {
     document.getElementById('load-video-button').addEventListener('click', () => {
@@ -527,17 +604,32 @@
         }
     });
     
-    // --- New Watermark Adjustment Listeners ---
+    const desktopBtn = document.getElementById('wm-view-desktop');
+    const mobileBtn = document.getElementById('wm-view-mobile');
+    
+    desktopBtn.addEventListener('click', () => {
+        state.activeWatermarkView = 'desktop';
+        renderWatermarkControls();
+    });
+
+    mobileBtn.addEventListener('click', () => {
+        state.activeWatermarkView = 'mobile';
+        renderWatermarkControls();
+    });
+
     const wmSizeSlider = document.getElementById('watermark-size-slider');
     const wmSizeValue = document.getElementById('watermark-size-value');
     const wmXInput = document.getElementById('watermark-x-offset-input');
     const wmYInput = document.getElementById('watermark-y-offset-input');
 
     const handleWatermarkAdjust = () => {
-        state.watermarkSize = parseInt(wmSizeSlider.value, 10);
-        state.watermarkXOffset = parseInt(wmXInput.value, 10) || 0;
-        state.watermarkYOffset = parseInt(wmYInput.value, 10) || 0;
-        wmSizeValue.textContent = `${state.watermarkSize}px`;
+        const currentView = state.activeWatermarkView;
+        state.watermarkSettings[currentView].size = parseInt(wmSizeSlider.value, 10);
+        state.watermarkSettings[currentView].x = parseInt(wmXInput.value, 10) || 0;
+        state.watermarkSettings[currentView].y = parseInt(wmYInput.value, 10) || 0;
+        
+        wmSizeValue.textContent = `${state.watermarkSettings[currentView].size}px`;
+        
         renderVideoPlayer();
         updateGeneratedUrl();
     };
@@ -560,11 +652,20 @@
         reader.onload = (event) => {
             let content = event.target.result;
             if (file.name.toLowerCase().endsWith('.srt')) {
-                content = 'WEBVTT\n\n' + content.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
+                // Basic SRT to VTT conversion
+                content = 'WEBVTT\n\n' + content
+                    .replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2') // Comma to dot for milliseconds
+                    .replace(/^\d+\s*$/gm, ''); // Remove sequence numbers
             }
             
-            const base64Content = btoa(unescape(encodeURIComponent(content)));
-            const dataUrl = `data:text/vtt;base64,${base64Content}`;
+            // Compress content
+            const compressedData = pako.deflate(content);
+            let binaryString = '';
+            for (let i = 0; i < compressedData.byteLength; i++) {
+                binaryString += String.fromCharCode(compressedData[i]);
+            }
+            const base64Compressed = btoa(binaryString);
+            const dataUrl = `vtt-compressed:${base64Compressed}`;
             
             addonUrlInput.value = `File: ${file.name}`;
             addonUrlInput.disabled = true;
@@ -583,7 +684,6 @@
         reader.readAsText(file);
     });
 
-
     const copyButton = document.getElementById('copy-button');
     copyButton.addEventListener('click', () => {
         if (!state.generatedUrl) return;
@@ -599,6 +699,7 @@
     });
 
     updateWatermarkPositionUI();
+    renderWatermarkControls();
   }
 
   function setupPlayerListeners(isEmbed) {
@@ -896,9 +997,19 @@
         state.sources = JSON.parse(decodeURIComponent(sourcesParam));
         state.watermarkUrl = params.get('watermark') ? decodeURIComponent(params.get('watermark')) : '';
         state.watermarkPosition = params.get('wmpos') || 'top-right';
-        state.watermarkSize = parseInt(params.get('wmsize'), 10) || 112;
-        state.watermarkXOffset = parseInt(params.get('wmx'), 10) || 12;
-        state.watermarkYOffset = parseInt(params.get('wmy'), 10) || 12;
+        
+        // Populate watermark settings for both desktop and mobile from URL
+        state.watermarkSettings.desktop = {
+            size: parseInt(params.get('wmsized'), 10) || 112,
+            x: parseInt(params.get('wmxd'), 10) || 12,
+            y: parseInt(params.get('wmyd'), 10) || 12,
+        };
+        state.watermarkSettings.mobile = {
+            size: parseInt(params.get('wmsizem'), 10) || 60,
+            x: parseInt(params.get('wmxm'), 10) || 8,
+            y: parseInt(params.get('wmym'), 10) || 8,
+        };
+
       } catch (e) {
         console.error("Failed to parse sources from URL", e);
         state.sources = [];
@@ -930,10 +1041,6 @@
     } else {
       state.isEmbedMode = false;
       document.getElementById('watermark-url-input').value = state.watermarkUrl;
-      document.getElementById('watermark-size-slider').value = state.watermarkSize;
-      document.getElementById('watermark-size-value').textContent = `${state.watermarkSize}px`;
-      document.getElementById('watermark-x-offset-input').value = state.watermarkXOffset;
-      document.getElementById('watermark-y-offset-input').value = state.watermarkYOffset;
       renderSourceList();
       renderVideoPlayer();
       updateGeneratedUrl();
